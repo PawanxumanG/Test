@@ -58,6 +58,29 @@
             background-size: 400% 400%;
             animation: gradientFlow 8s ease infinite;
         }
+        .name-glow {
+            color: #f97316;
+            text-shadow: 0 0 10px rgba(249, 115, 22, 0.8);
+        }
+        .color-input-wrapper {
+            position: relative;
+            width: 100%;
+            height: 48px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(48, 54, 61, 0.6);
+        }
+        .color-input-wrapper input[type="color"] {
+            position: absolute;
+            top: -10px;
+            left: -10px;
+            width: 150%;
+            height: 150%;
+            cursor: pointer;
+            border: none;
+            padding: 0;
+            background: none;
+        }
     </style>
 </head>
 <body>
@@ -259,7 +282,6 @@
             }
           };
 
-          // Notice Changelog Helpers
           const addChangelogItem = () => {
             setNoticeData(prev => ({
               ...prev,
@@ -294,8 +316,8 @@
               title: 'New College Event',
               content: ['Enter detail line 1'],
               theme: {
-                gradient: ["#ff9800", "#ff5722"],
-                glow: "rgba(255,152,0,.5)"
+                gradient: ["#00ffff", "#8bc34a"],
+                glow: "rgba(255,152,0,0.55)"
               }
             };
             setEventsData(prev => ({ ...prev, events: [newEvent, ...prev.events] }));
@@ -372,7 +394,7 @@
                   )
                 ]),
                 React.createElement('div', { key: 'contact', className: "flex items-center gap-3 mt-1 pr-2" }, [
-                  React.createElement('span', { className: "text-[10px] font-black uppercase tracking-widest text-slate-600" }, "Pawan Ponnam"),
+                  React.createElement('span', { className: "text-[10px] font-black uppercase tracking-widest name-glow" }, "Pawan Ponnam"),
                   React.createElement('a', { href: "https://wa.me/919867637326", target: "_blank", className: "px-3 py-1 bg-green-600 hover:bg-green-500 text-white text-[9px] font-black uppercase rounded-lg shadow-lg shadow-green-900/20 flex items-center gap-1 transition-all" }, "💬 Help")
                 ])
               ])
@@ -430,8 +452,38 @@
                         React.createElement('div', { key: idx, className: "bg-black/40 p-6 rounded-[2rem] border border-slate-800/50 relative group/event" }, [
                           React.createElement('button', { onClick: () => setEventsData(p => ({...p, events: p.events.filter((_, i) => i !== idx)})), className: "absolute -top-3 -right-3 w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white text-xs opacity-0 group-hover/event:opacity-100 transition-opacity shadow-lg" }, "✕"),
                           React.createElement('div', { className: "grid grid-cols-1 gap-6" }, [
-                            React.createElement('input', { value: ev.title, onChange: e => { let up = [...eventsData.events]; up[idx].title = e.target.value; setEventsData({...eventsData, events: up}) }, className: "w-full bg-[#0d1117] border border-slate-800 p-4 rounded-2xl text-lg font-bold text-white outline-none focus:border-orange-500" }),
-                            React.createElement('textarea', { value: ev.content.join('\n'), onChange: e => { let up = [...eventsData.events]; up[idx].content = e.target.value.split('\n'); setEventsData({...eventsData, events: up}) }, rows: 6, className: "w-full bg-[#0d1117] border border-slate-800 p-4 rounded-2xl text-sm text-slate-400 outline-none focus:border-orange-500 resize-none custom-scrollbar" })
+                            React.createElement('div', null, [
+                              React.createElement('label', { className: "text-[9px] font-black text-slate-600 uppercase mb-2 block" }, "Event Headline"),
+                              React.createElement('input', { value: ev.title, onChange: e => { let up = [...eventsData.events]; up[idx].title = e.target.value; setEventsData({...eventsData, events: up}) }, className: "w-full bg-[#0d1117] border border-slate-800 p-4 rounded-2xl text-lg font-bold text-white outline-none focus:border-orange-500" })
+                            ]),
+                            React.createElement('div', null, [
+                              React.createElement('label', { className: "text-[9px] font-black text-slate-600 uppercase mb-2 block" }, "Description (Full Text)"),
+                              React.createElement('textarea', { value: ev.content.join('\n'), onChange: e => { let up = [...eventsData.events]; up[idx].content = e.target.value.split('\n'); setEventsData({...eventsData, events: up}) }, rows: 6, className: "w-full bg-[#0d1117] border border-slate-800 p-4 rounded-2xl text-sm text-slate-400 outline-none focus:border-orange-500 resize-none custom-scrollbar" })
+                            ]),
+                            // Color Section matching the user's circle
+                            React.createElement('div', { className: "grid grid-cols-3 gap-4" }, [
+                              React.createElement('div', null, [
+                                React.createElement('label', { className: "text-[8px] font-black text-slate-600 uppercase mb-2 block" }, "COLOR 1"),
+                                React.createElement('div', { className: "color-input-wrapper" }, 
+                                  React.createElement('input', { type: "color", value: ev.theme.gradient[0], onChange: e => { let up = [...eventsData.events]; up[idx].theme.gradient[0] = e.target.value; setEventsData({...eventsData, events: up}) } })
+                                )
+                              ]),
+                              React.createElement('div', null, [
+                                React.createElement('label', { className: "text-[8px] font-black text-slate-600 uppercase mb-2 block" }, "COLOR 2"),
+                                React.createElement('div', { className: "color-input-wrapper" }, 
+                                  React.createElement('input', { type: "color", value: ev.theme.gradient[1], onChange: e => { let up = [...eventsData.events]; up[idx].theme.gradient[1] = e.target.value; setEventsData({...eventsData, events: up}) } })
+                                )
+                              ]),
+                              React.createElement('div', null, [
+                                React.createElement('label', { className: "text-[8px] font-black text-slate-600 uppercase mb-2 block" }, "GLOW"),
+                                React.createElement('input', { 
+                                  value: ev.theme.glow, 
+                                  onChange: e => { let up = [...eventsData.events]; up[idx].theme.glow = e.target.value; setEventsData({...eventsData, events: up}) }, 
+                                  className: "w-full bg-[#0d1117] border border-slate-800 p-3.5 rounded-xl text-[10px] font-mono text-slate-400 outline-none focus:border-orange-500",
+                                  placeholder: "rgba(255,152,0,0.55)"
+                                })
+                              ])
+                            ])
                           ])
                         ])
                       ))
@@ -467,7 +519,6 @@
                         React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2 pl-1" }, "Body Content (Full Text)"),
                         React.createElement('textarea', { value: activeTab === 'notice' ? noticeData.message.join('\n') : announcementData.message, onChange: e => activeTab === 'notice' ? setNoticeData({...noticeData, message: e.target.value.split('\n')}) : setAnnouncementData({...announcementData, message: e.target.value}), rows: 12, className: "w-full bg-[#0d1117] border border-slate-800 p-5 rounded-3xl text-slate-300 resize-none outline-none focus:border-orange-500" })
                       ]),
-                      // Feature from screenshot: Notice Updates / Changelog Section
                       activeTab === 'notice' && React.createElement('div', { className: "space-y-6 pt-6 border-t border-slate-800/50" }, [
                         React.createElement('div', null, [
                           React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2 pl-1" }, "Version Tag"),
@@ -515,9 +566,9 @@
                           React.createElement('span', null, w.class)
                         ]))
                       ]))
-                    ]) : activeTab === 'events' ? eventsData.events.map((ev, i) => React.createElement('div', { key: i, className: "p-4 mb-4 rounded-xl text-white", style: { background: `linear-gradient(135deg, ${ev.theme.gradient.join(',')})` } }, [
-                      React.createElement('h4', { className: "font-black uppercase" }, ev.title),
-                      ev.content.map((c, ci) => React.createElement('p', { key: ci, className: "text-[10px]" }, `• ${c}`))
+                    ]) : activeTab === 'events' ? eventsData.events.map((ev, i) => React.createElement('div', { key: i, className: "p-4 mb-4 rounded-xl text-white event-preview-card", style: { background: `linear-gradient(135deg, ${ev.theme.gradient.join(',')})`, boxShadow: `0 0 15px ${ev.theme.glow}` } }, [
+                      React.createElement('h4', { className: "font-black uppercase text-[12px]" }, ev.title),
+                      ev.content.map((c, ci) => React.createElement('p', { key: ci, className: "text-[9px] mt-1.5 opacity-90 leading-tight" }, `• ${c}`))
                     ])) : activeTab === 'notice' ? React.createElement('div', { className: "bg-[#161a22] p-6 rounded-[2rem] border border-slate-800 shadow-2xl relative overflow-hidden" }, [
                       React.createElement('div', { className: "absolute top-0 left-0 w-full h-1 bg-orange-600" }),
                       React.createElement('h4', { className: "text-orange-500 font-black text-lg uppercase tracking-tight mb-4" }, noticeData.title || 'Notice Title'),
@@ -534,7 +585,6 @@
                 ])
               )
             ]),
-            // Footer Redesign from screenshot
             React.createElement('footer', { key: 'footer', className: "text-center pt-24 pb-12 flex flex-col items-center gap-6" }, [
                React.createElement('div', { className: "flex items-center gap-6 opacity-30 w-full" }, [
                   React.createElement('div', { className: "h-px flex-1 bg-slate-500" }),
@@ -546,7 +596,7 @@
                  React.createElement('div', { className: "bg-[#161b22] px-8 py-4 rounded-[1.5rem] border border-slate-800/50 shadow-xl inline-flex items-center gap-4" }, [
                    React.createElement('span', { className: "text-slate-500 text-[10px] font-black uppercase tracking-widest" }, "MADE BY"),
                    React.createElement('div', { className: "w-px h-4 bg-slate-800" }),
-                   React.createElement('span', { className: "text-orange-500 text-[11px] font-black uppercase tracking-[0.2em]" }, "PAWAN PONNAM")
+                   React.createElement('span', { className: "name-glow text-[11px] font-black uppercase tracking-[0.2em]" }, "PAWAN PONNAM")
                  ])
                ]),
                React.createElement('p', { className: "text-slate-700 text-[8px] font-bold uppercase tracking-[0.6em] mt-4" }, "ENCRYPTED ENVIRONMENT V2.2")
