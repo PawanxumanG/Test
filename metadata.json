@@ -1,0 +1,5 @@
+{
+  "name": "RR College Admin Dashboard",
+  "description": "A comprehensive admin panel to manage college notices, event popups, annual sports leaderboards, and live events. Integrates with GitHub API for real-time updates.",
+  "requestFramePermissions": []
+}
