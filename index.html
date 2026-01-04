@@ -23,9 +23,8 @@
             -webkit-touch-callout: none !important;
         }
         .screenshot-protected #main-content {
-            filter: blur(0px); /* Base state */
+            filter: blur(0px); 
         }
-        /* Obscure content when screen capturing tools are likely active or on blur */
         @media print {
             .screenshot-protected { display: none !important; }
         }
@@ -77,7 +76,7 @@
         .name-glow {
             color: #f97316;
             font-weight: 900;
-            text-shadow: 0 0 15px rgba(249, 115, 22, 0.9), 0 0 30px rgba(249, 115, 22, 0.4);
+            text-shadow: 0 0 15px rgba(249, 115, 22, 1), 0 0 30px rgba(249, 115, 22, 0.6);
             letter-spacing: 0.15em;
         }
         .color-input-wrapper {
@@ -132,7 +131,7 @@
           const [passwordInput, setPasswordInput] = useState('');
           
           const [config, setConfig] = useState(() => {
-            const saved = localStorage.getItem('rr_admin_config_v7');
+            const saved = localStorage.getItem('rr_admin_config_v8');
             return saved ? JSON.parse(saved) : { token: '', owner: '', repo: '', securityRepo: '' };
           });
 
@@ -152,11 +151,12 @@
           });
 
           const [loading, setLoading] = useState(false);
+          const [busyTab, setBusyTab] = useState(null); // Tracks which specific resource is syncing/publishing
           const [status, setStatus] = useState(null);
           const [showSettings, setShowSettings] = useState(false);
 
           useEffect(() => {
-            localStorage.setItem('rr_admin_config_v7', JSON.stringify(config));
+            localStorage.setItem('rr_admin_config_v8', JSON.stringify(config));
           }, [config]);
 
           useEffect(() => {
@@ -183,59 +183,19 @@
             setTimeout(() => setStatus(null), 5000);
           };
 
-          const handleUnlock = (e) => {
-            e.preventDefault();
-            if (passwordInput === ADMIN_PASSWORD) {
-              setIsUnlocked(true);
-              setPasswordInput('');
-              notify('success', 'Admin session unlocked.');
-              // Auto-sync security to get SHA immediately
-              handleSync('security');
-            } else {
-              notify('error', 'Authentication failed.');
-            }
-          };
-
-          const toggleSettings = () => {
-            if (showSettings) {
-              setIsUnlocked(false);
-              setShowSettings(false);
-              setPasswordInput('');
-              notify('success', 'Security protocols active.');
-            } else {
-              setShowSettings(true);
-            }
-          };
-
-          const getCurrentFilePath = () => {
-            switch (activeTab) {
-              case 'notice': return 'notice.json';
-              case 'announcement': return 'announcement.json';
-              case 'events': return 'events.json';
-              case 'leaderboard': return 'leaderboard.json';
-              case 'security': return 'security.json';
-              default: return 'notice.json';
-            }
-          };
-
-          const getDisplayName = () => {
-            switch (activeTab) {
-              case 'notice': return 'Notice Board';
-              case 'announcement': return 'Announcement Pop-up';
-              case 'events': return 'Events Manager';
-              case 'leaderboard': return 'Sports Leaderboard';
-              case 'security': return 'Security Config';
-              default: return 'Management';
-            }
-          };
-
           const handleSync = async (targetTab = activeTab) => {
             if (!config.token || !config.owner || !config.repo) {
               notify('error', 'Configuration missing. Access GitHub settings.');
               return;
             }
             setLoading(true);
-            const path = targetTab === 'security' ? 'security.json' : getCurrentFilePath();
+            setBusyTab(targetTab);
+            
+            const path = targetTab === 'security' ? 'security.json' : 
+                         targetTab === 'notice' ? 'notice.json' :
+                         targetTab === 'announcement' ? 'announcement.json' :
+                         targetTab === 'events' ? 'events.json' : 'leaderboard.json';
+
             const targetRepo = targetTab === 'security' && config.securityRepo ? config.securityRepo : config.repo;
             
             try {
@@ -258,6 +218,42 @@
               notify('error', err.message);
             } finally {
               setLoading(false);
+              setBusyTab(null);
+            }
+          };
+
+          const handleUnlock = (e) => {
+            e.preventDefault();
+            if (passwordInput === ADMIN_PASSWORD) {
+              setIsUnlocked(true);
+              setPasswordInput('');
+              notify('success', 'Admin session unlocked.');
+              // Fetch security SHA immediately after unlock to enable the "Push" button
+              handleSync('security');
+            } else {
+              notify('error', 'Authentication failed.');
+            }
+          };
+
+          const toggleSettings = () => {
+            if (showSettings) {
+              setIsUnlocked(false);
+              setShowSettings(false);
+              setPasswordInput('');
+              notify('success', 'Security protocols active.');
+            } else {
+              setShowSettings(true);
+            }
+          };
+
+          const getDisplayName = () => {
+            switch (activeTab) {
+              case 'notice': return 'Notice Board';
+              case 'announcement': return 'Announcement Pop-up';
+              case 'events': return 'Events Manager';
+              case 'leaderboard': return 'Sports Leaderboard';
+              case 'security': return 'Security Config';
+              default: return 'Management';
             }
           };
 
@@ -270,7 +266,12 @@
               return;
             }
             setLoading(true);
-            const path = targetTab === 'security' ? 'security.json' : getCurrentFilePath();
+            setBusyTab(targetTab);
+            const path = targetTab === 'security' ? 'security.json' : 
+                         targetTab === 'notice' ? 'notice.json' :
+                         targetTab === 'announcement' ? 'announcement.json' :
+                         targetTab === 'events' ? 'events.json' : 'leaderboard.json';
+
             let currentData;
             if (targetTab === 'notice') currentData = noticeData;
             else if (targetTab === 'announcement') currentData = { ...announcementData, id: 'ann-' + Date.now() };
@@ -298,6 +299,7 @@
               notify('error', err.message);
             } finally {
               setLoading(false);
+              setBusyTab(null);
             }
           };
 
@@ -317,12 +319,6 @@
           const addSport = () => {
             const newSport = { sport: 'Sport Name', winners: [{ position: 1, name: 'TBD', class: 'N/A' }, { position: 2, name: 'TBD', class: 'N/A' }, { position: 3, name: 'TBD', class: 'N/A' }] };
             setLeaderboardData(prev => ({ ...prev, sports: [...prev.sports, newSport] }));
-          };
-
-          const updateSport = (idx, field, value) => {
-            const newSports = [...leaderboardData.sports];
-            if (field === 'sport') newSports[idx].sport = value;
-            setLeaderboardData({ ...leaderboardData, sports: newSports });
           };
 
           const updateWinner = (sIdx, wIdx, field, value) => {
@@ -353,7 +349,7 @@
                 React.createElement('div', { key: 'btns', className: "flex gap-2" }, [
                   React.createElement('button', { key: 'cfg', onClick: toggleSettings, className: `px-5 py-3 rounded-2xl text-xs font-black border transition-all ${showSettings ? 'bg-white text-black' : 'bg-slate-800 border-slate-700 text-slate-300'}` }, showSettings ? '✕ Close' : '⚙️ Config'),
                   React.createElement('button', { key: 'sync', onClick: () => handleSync(), disabled: loading, className: "px-5 py-3 bg-blue-600 hover:bg-blue-500 rounded-2xl text-xs font-black text-white shadow-lg shadow-blue-900/30 disabled:opacity-50 flex items-center gap-2" }, 
-                    loading ? React.createElement('div', { className: "loader" }) : "🔄 Sync Live"
+                    loading && busyTab === null ? React.createElement('div', { className: "loader" }) : "🔄 Sync Live"
                   )
                 ]),
                 React.createElement('div', { key: 'contact', className: "flex items-center gap-3 mt-1 pr-2" }, [
@@ -406,7 +402,7 @@
                         disabled: loading || !shas.security,
                         className: "px-6 py-3 bg-orange-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-orange-500 disabled:opacity-20 transition-all flex items-center gap-2"
                       }, [
-                        loading && targetTab === 'security' ? React.createElement('div', { className: "loader" }) : null,
+                        loading && busyTab === 'security' ? React.createElement('div', { className: "loader" }) : null,
                         "Push Security Update"
                       ])
                     ])
@@ -493,19 +489,19 @@
                       React.createElement('button', { onClick: addSport, className: "w-full py-4 border-2 border-dashed border-slate-800 rounded-3xl text-slate-500 hover:text-orange-500 hover:border-orange-500 transition-all font-black uppercase tracking-widest text-[10px]" }, "+ Add New Sport Section"),
                       React.createElement('div', { className: "space-y-12" }, leaderboardData.sports.map((sport, sIdx) => 
                         React.createElement('div', { key: sIdx, className: "bg-black/40 p-8 rounded-[2rem] border border-slate-800/50 relative group/sport" }, [
-                          React.createElement('button', { onClick: () => removeSport(sIdx), className: "absolute -top-3 -right-3 w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white text-xs opacity-0 group-hover/sport:opacity-100 transition-opacity shadow-lg" }, "✕"),
+                          React.createElement('button', { onClick: () => setLeaderboardData(p => ({...p, sports: p.sports.filter((_, i) => i !== sIdx)})), className: "absolute -top-3 -right-3 w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white text-xs opacity-0 group-hover/sport:opacity-100 transition-opacity shadow-lg" }, "✕"),
                           React.createElement('input', { value: sport.sport, onChange: e => updateSport(sIdx, 'sport', e.target.value), className: "w-full bg-[#0d1117] border border-slate-800 p-4 rounded-2xl text-lg font-bold text-orange-500 mb-6 outline-none" }),
                           React.createElement('div', { className: "space-y-4" }, [
                             React.createElement('div', { className: "flex justify-between" }, [
                               React.createElement('label', { className: "text-[9px] font-black text-slate-600 uppercase" }, "Winners"),
-                              React.createElement('button', { onClick: () => addWinnerRow(sIdx), className: "text-[8px] font-black uppercase text-orange-500 bg-orange-500/10 px-3 py-1.5 rounded-lg" }, "+ Add")
+                              React.createElement('button', { onClick: () => { let up = [...leaderboardData.sports]; up[sIdx].winners.push({ position: 1, name: '', class: '' }); setLeaderboardData({...leaderboardData, sports: up}) }, className: "text-[8px] font-black uppercase text-orange-500 bg-orange-500/10 px-3 py-1.5 rounded-lg" }, "+ Add")
                             ]),
                             sport.winners.map((winner, wIdx) => 
                               React.createElement('div', { key: wIdx, className: "grid grid-cols-12 gap-3 items-center" }, [
                                 React.createElement('input', { type: "number", value: winner.position, onChange: e => updateWinner(sIdx, wIdx, 'position', e.target.value), className: "col-span-2 bg-black/60 border border-slate-800 p-3 rounded-xl text-xs font-black text-white text-center" }),
                                 React.createElement('input', { value: winner.name, onChange: e => updateWinner(sIdx, wIdx, 'name', e.target.value), className: "col-span-5 bg-black/60 border border-slate-800 p-3 rounded-xl text-xs text-white" }),
                                 React.createElement('input', { value: winner.class, onChange: e => updateWinner(sIdx, wIdx, 'class', e.target.value), className: "col-span-3 bg-black/60 border border-slate-800 p-3 rounded-xl text-xs text-slate-500" }),
-                                React.createElement('button', { onClick: () => removeWinnerRow(sIdx, wIdx), className: "col-span-2 text-red-500" }, "✕")
+                                React.createElement('button', { onClick: () => { let up = [...leaderboardData.sports]; up[sIdx].winners = up[sIdx].winners.filter((_, i) => i !== wIdx); setLeaderboardData({...leaderboardData, sports: up}) }, className: "col-span-2 text-red-500" }, "✕")
                               ])
                             )
                           ])
@@ -596,7 +592,7 @@
                     disabled: loading || !shas[activeTab],
                     className: "w-full mt-12 py-6 bg-gradient-to-r from-orange-600 to-amber-500 text-white font-black text-lg rounded-3xl shadow-2xl transition-all active:scale-[0.97] disabled:opacity-20 flex items-center justify-center gap-4 uppercase tracking-widest"
                   }, [
-                    loading && activeTab !== 'security' ? React.createElement('div', { className: "loader" }) : null,
+                    loading && busyTab === activeTab ? React.createElement('div', { className: "loader" }) : null,
                     "🚀 APPLY LIVE CHANGES"
                   ])
                 ])
