@@ -15,17 +15,6 @@
             overflow-x: hidden;
             transition: all 0.3s ease;
         }
-        /* Enhanced Screenshot Protection Styles */
-        .screenshot-protected {
-            user-select: none !important;
-            -webkit-user-select: none !important;
-            -ms-user-select: none !important;
-            -webkit-touch-callout: none !important;
-        }
-        @media print {
-            .screenshot-protected { display: none !important; }
-        }
-
         .glass-panel {
             background: rgba(22, 27, 34, 0.8);
             backdrop-filter: blur(20px);
@@ -73,8 +62,7 @@
         .name-glow {
             color: #f97316;
             font-weight: 900;
-            text-shadow: 0 0 15px rgba(249, 115, 22, 1), 0 0 30px rgba(249, 115, 22, 0.9);
-            letter-spacing: 0.15em;
+            text-shadow: 0 0 15px rgba(249, 115, 22, 0.9), 0 0 30px rgba(249, 115, 22, 0.4);
         }
         .color-input-wrapper {
             position: relative;
@@ -101,7 +89,7 @@
         }
     </style>
 </head>
-<body id="app-body">
+<body>
     <div id="root"></div>
 
     <script type="module">
@@ -128,8 +116,8 @@
           const [passwordInput, setPasswordInput] = useState('');
           
           const [config, setConfig] = useState(() => {
-            const saved = localStorage.getItem('rr_admin_config_v11');
-            return saved ? JSON.parse(saved) : { token: '', owner: '', repo: '', securityRepo: '' };
+            const saved = localStorage.getItem('rr_admin_config_v12');
+            return saved ? JSON.parse(saved) : { token: '', owner: '', repo: '' };
           });
 
           const [noticeData, setNoticeData] = useState({ 
@@ -141,107 +129,22 @@
           });
           const [eventsData, setEventsData] = useState({ show: true, events: [] });
           const [leaderboardData, setLeaderboardData] = useState({ show: true, title: 'Annual Sports Results', sports: [] });
-          const [securityData, setSecurityData] = useState({ disableScreenshot: false });
 
           const [shas, setShas] = useState({ 
-            notice: null, announcement: null, events: null, leaderboard: null, security: null
+            notice: null, announcement: null, events: null, leaderboard: null
           });
 
           const [loading, setLoading] = useState(false);
-          const [busyTab, setBusyTab] = useState(null); 
           const [status, setStatus] = useState(null);
           const [showSettings, setShowSettings] = useState(false);
 
           useEffect(() => {
-            localStorage.setItem('rr_admin_config_v11', JSON.stringify(config));
+            localStorage.setItem('rr_admin_config_v12', JSON.stringify(config));
           }, [config]);
-
-          const getDisplayName = useCallback(() => {
-            switch (activeTab) {
-              case 'notice': return 'Notice Board';
-              case 'announcement': return 'Announcement Pop-up';
-              case 'events': return 'Events Manager';
-              case 'leaderboard': return 'Sports Leaderboard';
-              case 'security': return 'Security Config';
-              default: return 'Management';
-            }
-          }, [activeTab]);
-
-          useEffect(() => {
-            const body = document.getElementById('app-body');
-            const preventAction = (e) => {
-                if (securityData.disableScreenshot) {
-                    e.preventDefault();
-                    return false;
-                }
-            };
-
-            if (securityData.disableScreenshot) {
-              body.classList.add('screenshot-protected');
-              window.addEventListener('contextmenu', preventAction);
-            } else {
-              body.classList.remove('screenshot-protected');
-              window.removeEventListener('contextmenu', preventAction);
-            }
-            return () => window.removeEventListener('contextmenu', preventAction);
-          }, [securityData.disableScreenshot]);
 
           const notify = (type, message) => {
             setStatus({ type, message });
             setTimeout(() => setStatus(null), 5000);
-          };
-
-          const handleSync = async (targetTab = activeTab) => {
-            if (!config.token || !config.owner || !config.repo) {
-              if (isUnlocked) notify('error', 'Configuration missing.');
-              return;
-            }
-            setLoading(true);
-            setBusyTab(targetTab);
-            
-            const pathMap = {
-                'security': 'security.json',
-                'notice': 'notice.json',
-                'announcement': 'announcement.json',
-                'events': 'events.json',
-                'leaderboard': 'leaderboard.json'
-            };
-            const path = pathMap[targetTab] || 'notice.json';
-            const targetRepo = (targetTab === 'security' && config.securityRepo) ? config.securityRepo : config.repo;
-            
-            try {
-                const url = `https://api.github.com/repos/${config.owner}/${targetRepo}/contents/${path}`;
-                const res = await fetch(url, {
-                  headers: { 'Authorization': `token ${config.token}`, 'Accept': 'application/vnd.github.v3+json' }
-                });
-                
-                if (res.status === 404) {
-                   if (targetTab === 'security') {
-                       setShas(p => ({...p, security: null}));
-                       notify('success', 'Security file initialized locally.');
-                   } else {
-                       throw new Error(`File ${path} not found in ${targetRepo}.`);
-                   }
-                } else if (!res.ok) {
-                    throw new Error(`Sync failed for ${targetTab}.`);
-                } else {
-                    const data = await res.json();
-                    const content = JSON.parse(safeB64Decode(data.content));
-                    
-                    if (targetTab === 'notice') { setNoticeData(content); setShas(p => ({...p, notice: data.sha})); }
-                    else if (targetTab === 'announcement') { setAnnouncementData(content); setShas(p => ({...p, announcement: data.sha})); }
-                    else if (targetTab === 'events') { setEventsData(content); setShas(p => ({...p, events: data.sha})); }
-                    else if (targetTab === 'leaderboard') { setLeaderboardData(content); setShas(p => ({...p, leaderboard: data.sha})); }
-                    else if (targetTab === 'security') { setSecurityData(content); setShas(p => ({...p, security: data.sha})); }
-                    
-                    notify('success', `${targetTab} data synchronized.`);
-                }
-            } catch (err) {
-              notify('error', err.message);
-            } finally {
-              setLoading(false);
-              setBusyTab(null);
-            }
           };
 
           const handleUnlock = (e) => {
@@ -250,125 +153,169 @@
               setIsUnlocked(true);
               setPasswordInput('');
               notify('success', 'Admin session unlocked.');
-              handleSync('security');
-              handleSync(activeTab);
             } else {
               notify('error', 'Authentication failed.');
             }
           };
 
-          const handlePublish = async (targetTab = activeTab) => {
-            const targetRepo = (targetTab === 'security' && config.securityRepo) ? config.securityRepo : config.repo;
-            if (!config.token || !config.owner || !targetRepo) {
-              notify('error', 'Incomplete Configuration.');
+          const toggleSettings = () => {
+            if (showSettings) {
+              setIsUnlocked(false);
+              setShowSettings(false);
+              setPasswordInput('');
+              notify('success', 'Settings closed.');
+            } else {
+              setShowSettings(true);
+            }
+          };
+
+          const getCurrentFilePath = () => {
+            switch (activeTab) {
+              case 'notice': return 'notice.json';
+              case 'announcement': return 'announcement.json';
+              case 'events': return 'events.json';
+              case 'leaderboard': return 'leaderboard.json';
+              default: return 'notice.json';
+            }
+          };
+
+          const getDisplayName = useCallback(() => {
+            switch (activeTab) {
+              case 'notice': return 'Notice Board';
+              case 'announcement': return 'Announcement Pop-up';
+              case 'events': return 'Events Manager';
+              case 'leaderboard': return 'Sports Leaderboard';
+              default: return 'Management';
+            }
+          }, [activeTab]);
+
+          const handleSync = async (targetTab = activeTab) => {
+            if (!config.token || !config.owner || !config.repo) {
+              notify('error', 'Config missing. Check Settings.');
               return;
             }
-
             setLoading(true);
-            setBusyTab(targetTab);
+            const path = getCurrentFilePath();
             
-            const pathMap = {
-                'security': 'security.json',
-                'notice': 'notice.json',
-                'announcement': 'announcement.json',
-                'events': 'events.json',
-                'leaderboard': 'leaderboard.json'
-            };
-            const path = pathMap[targetTab] || 'notice.json';
-
-            // Pre-fetch SHA to avoid conflicts
-            let activeSha = shas[targetTab];
             try {
-                const headRes = await fetch(`https://api.github.com/repos/${config.owner}/${targetRepo}/contents/${path}`, {
-                    headers: { 'Authorization': `token ${config.token}`, 'Accept': 'application/vnd.github.v3+json' }
+              const url = `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${path}`;
+              const res = await fetch(url, {
+                headers: { 'Authorization': `token ${config.token}`, 'Accept': 'application/vnd.github.v3+json' }
+              });
+              if (!res.ok) throw new Error('Sync failed.');
+              const data = await res.json();
+              const content = JSON.parse(safeB64Decode(data.content));
+              
+              if (activeTab === 'notice') { setNoticeData(content); setShas(p => ({...p, notice: data.sha})); }
+              else if (activeTab === 'announcement') { setAnnouncementData(content); setShas(p => ({...p, announcement: data.sha})); }
+              else if (activeTab === 'events') { setEventsData(content); setShas(p => ({...p, events: data.sha})); }
+              else if (activeTab === 'leaderboard') { setLeaderboardData(content); setShas(p => ({...p, leaderboard: data.sha})); }
+              
+              notify('success', `${activeTab} synchronized.`);
+            } catch (err) {
+              notify('error', err.message);
+            } finally {
+              setLoading(false);
+            }
+          };
+
+          const handlePublish = async (targetTab = activeTab) => {
+            if (!config.token || !config.owner || !config.repo) {
+              notify('error', 'Incomplete config.');
+              return;
+            }
+            setLoading(true);
+            const path = getCurrentFilePath();
+
+            // Pre-fetch latest SHA
+            let latestSha = shas[activeTab];
+            try {
+                const headRes = await fetch(`https://api.github.com/repos/${config.owner}/${config.repo}/contents/${path}`, {
+                  headers: { 'Authorization': `token ${config.token}`, 'Accept': 'application/vnd.github.v3+json' }
                 });
                 if (headRes.ok) {
                     const headData = await headRes.json();
-                    activeSha = headData.sha;
+                    latestSha = headData.sha;
                 }
-            } catch (e) { /* silent */ }
+            } catch(e) {}
 
             let currentData;
-            if (targetTab === 'notice') currentData = noticeData;
-            else if (targetTab === 'announcement') currentData = { ...announcementData, id: 'ann-' + Date.now() };
-            else if (targetTab === 'events') currentData = eventsData;
-            else if (targetTab === 'leaderboard') currentData = leaderboardData;
-            else if (targetTab === 'security') currentData = securityData;
+            if (activeTab === 'notice') currentData = noticeData;
+            else if (activeTab === 'announcement') currentData = { ...announcementData, id: 'ann-' + Date.now() };
+            else if (activeTab === 'events') currentData = eventsData;
+            else if (activeTab === 'leaderboard') currentData = leaderboardData;
 
             try {
-              const url = `https://api.github.com/repos/${config.owner}/${targetRepo}/contents/${path}`;
+              const url = `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${path}`;
               const body = {
-                message: `Admin Update: ${targetTab} via Control Center`,
+                message: `Admin Update: ${activeTab} via Control Center`,
                 content: safeB64Encode(JSON.stringify(currentData, null, 2))
               };
-              if (activeSha) body.sha = activeSha;
+              if (latestSha) body.sha = latestSha;
 
               const res = await fetch(url, {
                 method: 'PUT',
                 headers: { 'Authorization': `token ${config.token}`, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
               });
-              
-              if (!res.ok) {
-                  const errData = await res.json();
-                  throw new Error(errData.message || `Push failed.`);
-              }
-              
+              if (!res.ok) throw new Error('Publication failed.');
               const resData = await res.json();
-              setShas(prev => ({ ...prev, [targetTab]: resData.content.sha }));
-              notify('success', `${targetTab} updated live!`);
+              setShas(prev => ({ ...prev, [activeTab]: resData.content.sha }));
+              notify('success', `${activeTab} updated successfully.`);
             } catch (err) {
               notify('error', err.message);
             } finally {
               setLoading(false);
-              setBusyTab(null);
             }
           };
 
-          // Helper: Add changelog item
-          const addChangelogItem = () => setNoticeData(p => ({ ...p, updates: { ...p.updates, items: [...(p.updates?.items || []), ''] } }));
+          const addChangelogItem = () => setNoticeData(prev => ({ ...prev, updates: { ...prev.updates, items: [...(prev.updates?.items || []), ''] } }));
           const updateChangelogItem = (idx, val) => {
-              const items = [...(noticeData.updates?.items || [])];
-              items[idx] = val;
-              setNoticeData(p => ({ ...p, updates: { ...p.updates, items } }));
+            const newItems = [...(noticeData.updates?.items || [])];
+            newItems[idx] = val;
+            setNoticeData(prev => ({ ...prev, updates: { ...prev.updates, items: newItems } }));
           };
-          const removeChangelogItem = (idx) => setNoticeData(p => ({ ...p, updates: { ...p.updates, items: p.updates.items.filter((_, i) => i !== idx) } }));
+          const removeChangelogItem = (idx) => setNoticeData(prev => ({ ...prev, updates: { ...prev.updates, items: prev.updates.items.filter((_, i) => i !== idx) } }));
 
-          // Helper: Add Event
           const addEvent = () => {
             const newEvent = { title: 'New Event', content: ['Description here'], theme: { gradient: ["#ff9800", "#ff5722"], glow: { color: "#ff9800", blur: 30, intensity: 0.8 } } };
             setEventsData(prev => ({ ...prev, events: [newEvent, ...prev.events] }));
           };
 
-          // Helper: Add Sport
           const addSport = () => {
-              const newSport = { sport: 'Sport Name', winners: [{ position: 1, name: '', class: '' }] };
-              setLeaderboardData(prev => ({ ...prev, sports: [...prev.sports, newSport] }));
+            const newSport = { sport: 'Sport Name', winners: [{ position: 1, name: 'TBD', class: 'N/A' }] };
+            setLeaderboardData(prev => ({ ...prev, sports: [...prev.sports, newSport] }));
           };
+
           const updateSport = (idx, field, value) => {
-              const newSports = [...leaderboardData.sports];
-              newSports[idx][field] = value;
-              setLeaderboardData({ ...leaderboardData, sports: newSports });
+            const newSports = [...leaderboardData.sports];
+            newSports[idx][field] = value;
+            setLeaderboardData({ ...leaderboardData, sports: newSports });
           };
 
-          // Helper: Leaderboard Winners
           const addWinnerRow = (sIdx) => {
-              const sports = [...leaderboardData.sports];
-              sports[sIdx].winners.push({ position: sports[sIdx].winners.length + 1, name: '', class: '' });
-              setLeaderboardData({ ...leaderboardData, sports });
-          };
-          const updateWinner = (sIdx, wIdx, field, val) => {
-              const sports = [...leaderboardData.sports];
-              sports[sIdx].winners[wIdx][field] = field === 'position' ? parseInt(val) : val;
-              setLeaderboardData({ ...leaderboardData, sports });
+            const sports = [...leaderboardData.sports];
+            sports[sIdx].winners.push({ position: sports[sIdx].winners.length + 1, name: '', class: '' });
+            setLeaderboardData({ ...leaderboardData, sports });
           };
 
-          // Auto-sync when tab changes (if unlocked)
-          useEffect(() => {
-              if (isUnlocked) handleSync(activeTab);
-          }, [activeTab]);
+          const updateWinner = (sIdx, wIdx, field, value) => {
+            const newSports = [...leaderboardData.sports];
+            newSports[sIdx].winners[wIdx][field] = field === 'position' ? parseInt(value) : value;
+            setLeaderboardData({ ...leaderboardData, sports: newSports });
+          };
 
-          return React.createElement('div', { id: "main-content", className: "min-h-screen p-4 md:p-8 max-w-7xl mx-auto flex flex-col gap-6" }, [
+          const removeWinnerRow = (sIdx, wIdx) => {
+            const sports = [...leaderboardData.sports];
+            sports[sIdx].winners = sports[sIdx].winners.filter((_, i) => i !== wIdx);
+            setLeaderboardData({ ...leaderboardData, sports });
+          };
+
+          const removeSport = (sIdx) => {
+            setLeaderboardData(p => ({ ...p, sports: p.sports.filter((_, i) => i !== sIdx) }));
+          };
+
+          return React.createElement('div', { className: "min-h-screen p-4 md:p-8 max-w-7xl mx-auto flex flex-col gap-6" }, [
             React.createElement('header', { key: 'header', className: "flex flex-col xl:flex-row justify-between items-center gap-6 bg-[#161b22] p-5 rounded-[2.5rem] border border-slate-800 shadow-2xl relative" }, [
               React.createElement('div', { key: 'logo', className: "flex items-center gap-4" }, [
                 React.createElement('div', { key: 'rr', className: "bg-gradient-to-br from-orange-500 to-amber-600 w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl text-white shadow-xl shadow-orange-900/40" }, "RR"),
@@ -388,75 +335,43 @@
               ),
               React.createElement('div', { key: 'actions', className: "flex flex-col items-center xl:items-end gap-2" }, [
                 React.createElement('div', { key: 'btns', className: "flex gap-2" }, [
-                  React.createElement('button', { key: 'cfg', onClick: () => setShowSettings(!showSettings), className: `px-5 py-3 rounded-2xl text-xs font-black border transition-all ${showSettings ? 'bg-white text-black' : 'bg-slate-800 border-slate-700 text-slate-300'}` }, showSettings ? '✕ Close' : '⚙️ Config'),
+                  React.createElement('button', { key: 'cfg', onClick: toggleSettings, className: `px-5 py-3 rounded-2xl text-xs font-black border transition-all ${showSettings ? 'bg-white text-black' : 'bg-slate-800 border-slate-700 text-slate-300'}` }, showSettings ? '✕ Close' : '⚙️ Config'),
                   React.createElement('button', { key: 'sync', onClick: () => handleSync(), disabled: loading, className: "px-5 py-3 bg-blue-600 hover:bg-blue-500 rounded-2xl text-xs font-black text-white shadow-lg shadow-blue-900/30 disabled:opacity-50 flex items-center gap-2" }, 
-                    (loading && busyTab === activeTab) ? React.createElement('div', { className: "loader" }) : "🔄 Sync Live"
+                    loading ? React.createElement('div', { className: "loader" }) : "🔄 Sync Live"
                   )
                 ]),
                 React.createElement('div', { key: 'contact', className: "flex items-center gap-3 mt-1 pr-2" }, [
-                  React.createElement('span', { className: "name-glow text-[11px] uppercase tracking-widest" }, "PAWAN PONNAM"),
+                  React.createElement('span', { className: "text-[11px] uppercase tracking-widest name-glow" }, "PAWAN PONNAM"),
                   React.createElement('a', { href: "https://wa.me/919867637326", target: "_blank", className: "px-3 py-1 bg-green-600 hover:bg-green-500 text-white text-[9px] font-black uppercase rounded-lg shadow-lg shadow-green-900/20 flex items-center gap-1 transition-all" }, "💬 Help")
                 ])
               ])
             ]),
-
-            showSettings && React.createElement('section', { key: 'settings', className: "glass-panel p-8 rounded-[3rem] animate-slide-up bg-orange-500/5 border-orange-500/20" }, [
+            showSettings && React.createElement('section', { key: 'settings', className: "glass-panel p-8 rounded-[3rem] animate-slide-up bg-orange-500/5 border-orange-500/20 shadow-[0_0_40px_rgba(249,115,22,0.1)]" }, [
               !isUnlocked ? React.createElement('div', { key: 'lock', className: "max-w-md mx-auto py-6 text-center" }, [
                 React.createElement('div', { className: "mb-4 text-3xl" }, "🔒"),
-                React.createElement('h3', { className: "text-sm font-black text-white uppercase tracking-widest mb-2" }, "Restricted Area"),
+                React.createElement('h3', { className: "text-sm font-black text-white uppercase tracking-widest mb-2" }, "Authorize Access"),
                 React.createElement('form', { onSubmit: handleUnlock, className: "flex flex-col gap-3" }, [
                   React.createElement('input', { type: "password", autoFocus: true, value: passwordInput, onChange: e => setPasswordInput(e.target.value), className: "w-full bg-black/60 border border-slate-800 p-4 rounded-2xl focus:border-orange-500 outline-none text-center font-mono tracking-widest text-lg", placeholder: "••••••••" }),
-                  React.createElement('button', { type: "submit", className: "bg-orange-600 hover:bg-orange-500 text-white font-black py-4 rounded-2xl text-xs uppercase tracking-widest" }, "Authorize Access")
+                  React.createElement('button', { type: "submit", className: "bg-orange-600 hover:bg-orange-500 text-white font-black py-4 rounded-2xl text-xs uppercase tracking-widest" }, "Unlock Panel")
                 ])
-              ]) : React.createElement('div', { key: 'config-form', className: "space-y-8" }, [
-                React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" }, [
-                  React.createElement('div', null, [
-                    React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest pl-1" }, "Access Token"),
-                    React.createElement('input', { type: "password", value: config.token, onChange: e => setConfig({...config, token: e.target.value}), className: "w-full bg-black/40 border border-slate-800 p-4 rounded-2xl focus:border-orange-500 outline-none text-sm text-slate-300" })
-                  ]),
-                  React.createElement('div', null, [
-                    React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest pl-1" }, "Repo Owner"),
-                    React.createElement('input', { value: config.owner, onChange: e => setConfig({...config, owner: e.target.value}), className: "w-full bg-black/40 border border-slate-800 p-4 rounded-2xl focus:border-orange-500 outline-none text-sm text-slate-300" })
-                  ]),
-                  React.createElement('div', null, [
-                    React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest pl-1" }, "Repo Name"),
-                    React.createElement('input', { value: config.repo, onChange: e => setConfig({...config, repo: e.target.value}), className: "w-full bg-black/40 border border-slate-800 p-4 rounded-2xl focus:border-orange-500 outline-none text-sm text-slate-300" })
-                  ]),
-                  React.createElement('div', null, [
-                    React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest pl-1" }, "Security Repo (Separate)"),
-                    React.createElement('input', { value: config.securityRepo, onChange: e => setConfig({...config, securityRepo: e.target.value}), className: "w-full bg-black/40 border border-slate-800 p-4 rounded-2xl focus:border-orange-500 outline-none text-sm text-slate-300", placeholder: "e.g. security-repo" })
-                  ])
+              ]) : React.createElement('div', { key: 'config-form', className: "grid grid-cols-1 md:grid-cols-3 gap-6" }, [
+                React.createElement('div', null, [
+                  React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest pl-1" }, "Access Token"),
+                  React.createElement('input', { type: "password", value: config.token, onChange: e => setConfig({...config, token: e.target.value}), className: "w-full bg-black/40 border border-slate-800 p-4 rounded-2xl focus:border-orange-500 outline-none text-sm text-slate-300" })
                 ]),
-                React.createElement('div', { className: "pt-8 border-t border-slate-800/50" }, [
-                  React.createElement('h4', { className: "text-[10px] font-black text-orange-500 uppercase tracking-widest mb-6 pl-1" }, "System Security"),
-                  React.createElement('div', { className: "bg-black/60 p-6 rounded-[2rem] border border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-6" }, [
-                    React.createElement('div', null, [
-                      React.createElement('h5', { className: "text-white font-black text-sm uppercase mb-1" }, "Screenshot Protection"),
-                      React.createElement('p', { className: "text-slate-500 text-[10px] uppercase tracking-wide font-medium" }, "Prevents screen capture and text copying across the app.")
-                    ]),
-                    React.createElement('div', { className: "flex items-center gap-4" }, [
-                      React.createElement('button', {
-                        onClick: () => setSecurityData(p => ({...p, disableScreenshot: !p.disableScreenshot})),
-                        className: `px-8 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${securityData.disableScreenshot ? 'bg-red-600 text-white shadow-lg' : 'bg-green-600 text-white shadow-lg'}`
-                      }, securityData.disableScreenshot ? 'Disable Protection' : 'Enable Protection'),
-                      React.createElement('button', {
-                        onClick: () => handlePublish('security'),
-                        disabled: loading || !config.token,
-                        className: "px-6 py-3 bg-orange-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-orange-500 disabled:opacity-20 transition-all flex items-center gap-2"
-                      }, [
-                        (loading && busyTab === 'security') ? React.createElement('div', { className: "loader" }) : null,
-                        "Push Security Update"
-                      ])
-                    ])
-                  ])
+                React.createElement('div', null, [
+                  React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest pl-1" }, "Repo Owner"),
+                  React.createElement('input', { value: config.owner, onChange: e => setConfig({...config, owner: e.target.value}), className: "w-full bg-black/40 border border-slate-800 p-4 rounded-2xl focus:border-orange-500 outline-none text-sm text-slate-300" })
+                ]),
+                React.createElement('div', null, [
+                  React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest pl-1" }, "Repo Name"),
+                  React.createElement('input', { value: config.repo, onChange: e => setConfig({...config, repo: e.target.value}), className: "w-full bg-black/40 border border-slate-800 p-4 rounded-2xl focus:border-orange-500 outline-none text-sm text-slate-300" })
                 ])
               ])
             ]),
-
             status && React.createElement('div', { key: 'notify', className: `fixed bottom-8 right-8 z-[100] p-4 rounded-2xl border shadow-2xl flex items-center gap-3 animate-slide-up backdrop-blur-xl ${status.type === 'success' ? 'bg-green-600/10 border-green-500 text-green-400' : 'bg-red-600/10 border-red-500 text-red-400'}` }, 
               React.createElement('span', { className: "font-bold text-xs tracking-wide uppercase" }, status.message)
             ),
-
             React.createElement('div', { key: 'main', className: "grid grid-cols-1 lg:grid-cols-12 gap-8" }, [
               React.createElement('div', { key: 'editor', className: "lg:col-span-8 space-y-8" }, 
                 React.createElement('section', { className: "glass-panel p-8 md:p-10 rounded-[3rem] shadow-2xl relative overflow-hidden" }, [
@@ -473,147 +388,149 @@
                         else setLeaderboardData(p => ({...p, show: !p.show}));
                       },
                       className: `px-5 py-2 rounded-full text-[9px] font-black transition-all border-2 ${
-                        ((activeTab === 'notice' ? noticeData.show : activeTab === 'announcement' ? announcementData.show : activeTab === 'events' ? eventsData.show : leaderboardData.show) ? 'bg-green-600/10 border-green-500 text-green-400' : 'bg-slate-800 border-slate-700 text-slate-500')
+                        (activeTab === 'notice' ? noticeData.show : activeTab === 'announcement' ? announcementData.show : activeTab === 'events' ? eventsData.show : leaderboardData.show) ? 'bg-green-600/10 border-green-500 text-green-400' : 'bg-slate-800 border-slate-700 text-slate-500'
                       }`
                     }, "● PUBLIC STATUS")
                   ]),
 
-                  // TAB CONTENT START
+                  // Tabs Switcher for Content
                   React.createElement('div', { className: "space-y-8" }, 
                     activeTab === 'notice' ? React.createElement('div', { className: "space-y-8" }, [
                       React.createElement('div', null, [
-                        React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest pl-1" }, "Primary Headline"),
-                        React.createElement('input', { value: noticeData.title, onChange: e => setNoticeData({...noticeData, title: e.target.value}), className: "w-full bg-[#0d1117] border border-slate-800 p-5 rounded-3xl text-xl font-bold text-white outline-none focus:border-orange-500" }),
+                        React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2 pl-1" }, "Primary Headline"),
+                        React.createElement('input', { value: noticeData.title, onChange: e => setNoticeData({...noticeData, title: e.target.value}), className: "w-full bg-[#0d1117] border border-slate-800 p-5 rounded-3xl text-xl font-bold text-white focus:border-orange-500 outline-none" })
                       ]),
                       React.createElement('div', null, [
-                        React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest pl-1" }, "Body Content"),
-                        React.createElement('textarea', { value: noticeData.message.join('\n'), onChange: e => setNoticeData({...noticeData, message: e.target.value.split('\n')}), rows: 10, className: "w-full bg-[#0d1117] border border-slate-800 p-5 rounded-3xl text-slate-300 outline-none focus:border-orange-500" }),
+                        React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2 pl-1" }, "Body Content (Full Text)"),
+                        React.createElement('textarea', { value: noticeData.message.join('\n'), onChange: e => setNoticeData({...noticeData, message: e.target.value.split('\n')}), rows: 10, className: "w-full bg-[#0d1117] border border-slate-800 p-5 rounded-3xl text-slate-300 resize-none outline-none focus:border-orange-500" })
                       ]),
-                      React.createElement('div', { className: "pt-6 border-t border-slate-800/50 space-y-6" }, [
+                      React.createElement('div', { className: "space-y-6 pt-6 border-t border-slate-800/50" }, [
                         React.createElement('div', null, [
-                            React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest pl-1" }, "Version Tag"),
-                            React.createElement('input', { value: noticeData.updates?.version || '', onChange: e => setNoticeData({...noticeData, updates: {...noticeData.updates, version: e.target.value}}), className: "w-full bg-[#0d1117] border border-slate-800 p-4 rounded-2xl text-sm outline-none", placeholder: "e.g. New App Updates v2.1" })
+                          React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2 pl-1" }, "Version Tag"),
+                          React.createElement('input', { value: noticeData.updates?.version || '', onChange: e => setNoticeData({...noticeData, updates: { ...noticeData.updates, version: e.target.value }}), className: "w-full bg-[#0d1117] border border-slate-800 p-4 rounded-2xl text-sm font-bold text-slate-400 focus:border-orange-500 outline-none", placeholder: "e.g. New App Updates v2.1" })
                         ]),
                         React.createElement('div', null, [
-                           React.createElement('div', { className: "flex justify-between items-center mb-4" }, [
-                             React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1" }, "Changelog Items"),
-                             React.createElement('button', { onClick: addChangelogItem, className: "text-[8px] font-black uppercase text-orange-500 bg-orange-500/10 px-3 py-1.5 rounded-lg border border-orange-500/20" }, "+ Add New Line")
-                           ]),
-                           React.createElement('div', { className: "space-y-2" }, (noticeData.updates?.items || []).map((it, idx) => 
-                              React.createElement('div', { key: idx, className: "flex gap-2" }, [
-                                React.createElement('input', { value: it, onChange: e => updateChangelogItem(idx, e.target.value), className: "flex-1 bg-[#161b22] border border-slate-800 p-3 rounded-xl text-xs text-white focus:border-orange-500 outline-none" }),
-                                React.createElement('button', { onClick: () => removeChangelogItem(idx), className: "px-3 bg-red-900/10 text-red-500 hover:bg-red-600 hover:text-white rounded-xl transition-all" }, "✕")
-                              ])
-                           ))
+                          React.createElement('div', { className: "flex justify-between items-center mb-4" }, [
+                            React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1" }, "Changelog Items"),
+                            React.createElement('button', { onClick: addChangelogItem, className: "text-[8px] font-black uppercase text-orange-500 bg-orange-500/10 px-3 py-1.5 rounded-lg border border-orange-500/20" }, "+ Add New Line")
+                          ]),
+                          React.createElement('div', { className: "space-y-2" }, 
+                            !(noticeData.updates?.items?.length) ? 
+                              React.createElement('div', { className: "py-4 text-center text-slate-700 text-[10px] font-black uppercase tracking-widest" }, "No Changelog Items Added") :
+                              noticeData.updates.items.map((item, idx) => 
+                                React.createElement('div', { key: idx, className: "flex gap-2" }, [
+                                  React.createElement('input', { value: item, onChange: e => updateChangelogItem(idx, e.target.value), className: "flex-1 bg-[#161b22] border border-slate-800 p-3 rounded-xl text-xs text-white focus:border-orange-500 outline-none" }),
+                                  React.createElement('button', { onClick: () => removeChangelogItem(idx), className: "px-3 bg-red-900/10 text-red-500 hover:bg-red-600 hover:text-white rounded-xl transition-all" }, "✕")
+                                ])
+                              )
+                          )
                         ])
                       ])
                     ]) : activeTab === 'announcement' ? React.createElement('div', { className: "space-y-8" }, [
+                      React.createElement('div', null, [
+                        React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2 pl-1" }, "Primary Headline"),
+                        React.createElement('input', { value: announcementData.title, onChange: e => setAnnouncementData({...announcementData, title: e.target.value}), className: "w-full bg-[#0d1117] border border-slate-800 p-5 rounded-3xl text-xl font-bold text-white focus:border-orange-500 outline-none" })
+                      ]),
+                      React.createElement('div', null, [
+                        React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2 pl-1" }, "Body Content (Full Text)"),
+                        React.createElement('textarea', { value: announcementData.message, onChange: e => setAnnouncementData({...announcementData, message: e.target.value}), rows: 10, className: "w-full bg-[#0d1117] border border-slate-800 p-5 rounded-3xl text-slate-300 resize-none outline-none focus:border-orange-500" })
+                      ]),
+                      React.createElement('div', { className: "space-y-6 pt-6 border-t border-slate-800/50" }, [
                         React.createElement('div', null, [
-                            React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest pl-1" }, "Primary Headline"),
-                            React.createElement('input', { value: announcementData.title, onChange: e => setAnnouncementData({...announcementData, title: e.target.value}), className: "w-full bg-[#0d1117] border border-slate-800 p-5 rounded-3xl text-xl font-bold text-white outline-none" }),
+                          React.createElement('div', { className: "flex justify-between items-center mb-4" }, [
+                            React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1" }, "Gradient Colors"),
+                            React.createElement('button', { onClick: () => { let up = {...announcementData}; up.theme.gradient.push('#ffffff'); setAnnouncementData(up) }, className: "text-[8px] font-black uppercase text-orange-500 px-3 py-1 bg-orange-500/10 rounded-lg" }, "+ Add Color")
+                          ]),
+                          React.createElement('div', { className: "grid grid-cols-2 sm:grid-cols-4 gap-3" }, (announcementData.theme?.gradient || []).map((col, ci) => 
+                            React.createElement('div', { key: ci, className: "relative group/color" }, [
+                              React.createElement('div', { className: "color-input-wrapper" }, React.createElement('input', { type: "color", value: col, onChange: e => { let up = {...announcementData}; up.theme.gradient[ci] = e.target.value; setAnnouncementData(up) } })),
+                              ci > 1 && React.createElement('button', { onClick: () => { let up = {...announcementData}; up.theme.gradient = up.theme.gradient.filter((_, i) => i !== ci); setAnnouncementData(up) }, className: "absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-4 h-4 text-[8px] opacity-0 group-hover/color:opacity-100 transition-opacity" }, "✕")
+                            ])
+                          ))
                         ]),
-                        React.createElement('div', null, [
-                            React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest pl-1" }, "Body Content"),
-                            React.createElement('textarea', { value: announcementData.message, onChange: e => setAnnouncementData({...announcementData, message: e.target.value}), rows: 8, className: "w-full bg-[#0d1117] border border-slate-800 p-5 rounded-3xl text-slate-300 outline-none" }),
+                        React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-3 gap-6" }, [
+                          React.createElement('div', null, [
+                            React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest pl-1" }, "Glow Color"),
+                            React.createElement('div', { className: "color-input-wrapper" }, React.createElement('input', { type: "color", value: announcementData.theme?.glow?.color || '#ff9800', onChange: e => setAnnouncementData(p => ({...p, theme: {...p.theme, glow: {...p.theme.glow, color: e.target.value}}})) }))
+                          ]),
+                          React.createElement('div', null, [
+                            React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest pl-1" }, `Blur: ${announcementData.theme?.glow?.blur || 30}px`),
+                            React.createElement('input', { type: "range", min: "0", max: "100", value: announcementData.theme?.glow?.blur || 30, onChange: e => setAnnouncementData(p => ({...p, theme: {...p.theme, glow: {...p.theme.glow, blur: parseInt(e.target.value)}}})) , className: "w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-orange-500" })
+                          ]),
+                          React.createElement('div', null, [
+                            React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest pl-1" }, `Intensity: ${Math.round((announcementData.theme?.glow?.intensity || 1) * 100)}%`),
+                            React.createElement('input', { type: "range", min: "0", max: "1", step: "0.01", value: announcementData.theme?.glow?.intensity || 1, onChange: e => setAnnouncementData(p => ({...p, theme: {...p.theme, glow: {...p.theme.glow, intensity: parseFloat(e.target.value)}}})) , className: "w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-orange-500" })
+                          ])
                         ]),
-                        React.createElement('div', { className: "pt-6 border-t border-slate-800/50 space-y-6" }, [
-                           React.createElement('div', null, [
-                             React.createElement('div', { className: "flex justify-between items-center mb-4" }, [
-                               React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1" }, "Gradient Colors"),
-                               React.createElement('button', { onClick: () => { let up = {...announcementData}; up.theme.gradient.push('#ffffff'); setAnnouncementData(up) }, className: "text-[8px] font-black uppercase text-orange-500 px-3 py-1 bg-orange-500/10 rounded-lg" }, "+ Add Color")
-                             ]),
-                             React.createElement('div', { className: "flex flex-wrap gap-4" }, (announcementData.theme?.gradient || []).map((col, ci) => 
-                                React.createElement('div', { key: ci, className: "w-24 relative group" }, [
-                                    React.createElement('div', { className: "color-input-wrapper" }, React.createElement('input', { type: "color", value: col, onChange: e => { let up = {...announcementData}; up.theme.gradient[ci] = e.target.value; setAnnouncementData(up) } })),
-                                    ci > 1 && React.createElement('button', { onClick: () => { let up = {...announcementData}; up.theme.gradient = up.theme.gradient.filter((_, i) => i !== ci); setAnnouncementData(up) }, className: "absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-4 h-4 text-[8px] opacity-0 group-hover:opacity-100 transition-opacity" }, "✕")
-                                ])
-                             ))
-                           ]),
-                           React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-3 gap-6" }, [
-                              React.createElement('div', null, [
-                                  React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest" }, "Glow Color"),
-                                  React.createElement('div', { className: "color-input-wrapper" }, React.createElement('input', { type: "color", value: announcementData.theme?.glow?.color || '#ff9800', onChange: e => setAnnouncementData(p => ({...p, theme: {...p.theme, glow: {...p.theme.glow, color: e.target.value}}})) }))
-                              ]),
-                              React.createElement('div', null, [
-                                  React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest" }, `Blur: ${announcementData.theme?.glow?.blur || 30}px`),
-                                  React.createElement('input', { type: "range", min: "0", max: "100", value: announcementData.theme?.glow?.blur || 30, onChange: e => setAnnouncementData(p => ({...p, theme: {...p.theme, glow: {...p.theme.glow, blur: parseInt(e.target.value)}}})) , className: "w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-orange-500" })
-                              ]),
-                              React.createElement('div', null, [
-                                  React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest" }, `Intensity: ${Math.round((announcementData.theme?.glow?.intensity || 1) * 100)}%`),
-                                  React.createElement('input', { type: "range", min: "0", max: "1", step: "0.01", value: announcementData.theme?.glow?.intensity || 1, onChange: e => setAnnouncementData(p => ({...p, theme: {...p.theme, glow: {...p.theme.glow, intensity: parseFloat(e.target.value)}}})) , className: "w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-orange-500" })
-                              ])
-                           ]),
-                           React.createElement('div', { className: "grid grid-cols-2 gap-6" }, [
-                              React.createElement('div', null, [
-                                  React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest" }, "Text Color"),
-                                  React.createElement('div', { className: "color-input-wrapper" }, React.createElement('input', { type: "color", value: announcementData.theme?.textColor || '#ffffff', onChange: e => setAnnouncementData(p => ({...p, theme: {...p.theme, textColor: e.target.value}})) }))
-                              ]),
-                              React.createElement('div', null, [
-                                  React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest" }, "Button Color"),
-                                  React.createElement('div', { className: "color-input-wrapper" }, React.createElement('input', { type: "color", value: announcementData.theme?.buttonColor || '#000000', onChange: e => setAnnouncementData(p => ({...p, theme: {...p.theme, buttonColor: e.target.value}})) }))
-                              ])
-                           ])
+                        React.createElement('div', { className: "grid grid-cols-2 gap-6" }, [
+                          React.createElement('div', null, [
+                            React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest pl-1" }, "Text Color"),
+                            React.createElement('div', { className: "color-input-wrapper" }, React.createElement('input', { type: "color", value: announcementData.theme?.textColor || '#ffffff', onChange: e => setAnnouncementData(p => ({...p, theme: {...p.theme, textColor: e.target.value}})) }))
+                          ]),
+                          React.createElement('div', null, [
+                            React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest pl-1" }, "Button Color"),
+                            React.createElement('div', { className: "color-input-wrapper" }, React.createElement('input', { type: "color", value: announcementData.theme?.buttonColor || '#000000', onChange: e => setAnnouncementData(p => ({...p, theme: {...p.theme, buttonColor: e.target.value}})) }))
+                          ])
                         ])
+                      ])
                     ]) : activeTab === 'events' ? React.createElement('div', { className: "space-y-8" }, [
-                        React.createElement('button', { onClick: addEvent, className: "w-full py-4 border-2 border-dashed border-slate-800 rounded-3xl text-slate-500 font-black uppercase text-[10px] hover:border-orange-500 hover:text-orange-500 transition-all" }, "+ Add New Event Card"),
-                        eventsData.events.map((ev, i) => React.createElement('div', { key: i, className: "bg-black/40 p-6 rounded-3xl border border-slate-800 relative group" }, [
-                           React.createElement('button', { onClick: () => setEventsData(p => ({...p, events: p.events.filter((_, idx) => idx !== i)})), className: "absolute -top-3 -right-3 w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity" }, "✕"),
-                           React.createElement('div', { className: "space-y-4" }, [
-                              React.createElement('input', { value: ev.title, onChange: e => { let up = [...eventsData.events]; up[i].title = e.target.value; setEventsData({...eventsData, events: up}) }, className: "w-full bg-[#0d1117] border border-slate-800 p-4 rounded-2xl text-white font-bold outline-none" }),
-                              React.createElement('textarea', { value: ev.content.join('\n'), onChange: e => { let up = [...eventsData.events]; up[i].content = e.target.value.split('\n'); setEventsData({...eventsData, events: up}) }, className: "w-full bg-[#0d1117] border border-slate-800 p-4 rounded-2xl text-slate-400 outline-none" }),
-                              React.createElement('div', { className: "grid grid-cols-2 gap-4" }, [
-                                  React.createElement('div', null, [
-                                      React.createElement('label', { className: "text-[8px] font-black uppercase text-slate-600 mb-1 block" }, "Gradient 1"),
-                                      React.createElement('div', { className: "color-input-wrapper h-8" }, React.createElement('input', { type: "color", value: ev.theme?.gradient?.[0] || '#ff9800', onChange: e => { let up = [...eventsData.events]; up[i].theme.gradient[0] = e.target.value; setEventsData({...eventsData, events: up})} }))
-                                  ]),
-                                  React.createElement('div', null, [
-                                      React.createElement('label', { className: "text-[8px] font-black uppercase text-slate-600 mb-1 block" }, "Gradient 2"),
-                                      React.createElement('div', { className: "color-input-wrapper h-8" }, React.createElement('input', { type: "color", value: ev.theme?.gradient?.[1] || '#ff5722', onChange: e => { let up = [...eventsData.events]; up[i].theme.gradient[1] = e.target.value; setEventsData({...eventsData, events: up})} }))
-                                  ])
+                      React.createElement('button', { onClick: addEvent, className: "w-full py-4 border-2 border-dashed border-slate-800 rounded-3xl text-slate-500 hover:text-orange-500 hover:border-orange-500 transition-all font-black uppercase tracking-widest text-[10px]" }, "+ Add New Event Card"),
+                      eventsData.events.map((ev, idx) => React.createElement('div', { key: idx, className: "bg-black/40 p-6 rounded-[2rem] border border-slate-800 relative group" }, [
+                        React.createElement('button', { onClick: () => setEventsData(p => ({...p, events: p.events.filter((_, i) => i !== idx)})), className: "absolute -top-3 -right-3 w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity" }, "✕"),
+                        React.createElement('input', { value: ev.title, onChange: e => { let up = [...eventsData.events]; up[idx].title = e.target.value; setEventsData({...eventsData, events: up}) }, className: "w-full bg-[#0d1117] border border-slate-800 p-4 rounded-2xl text-lg font-bold text-white mb-4 outline-none focus:border-orange-500" }),
+                        React.createElement('textarea', { value: ev.content.join('\n'), onChange: e => { let up = [...eventsData.events]; up[idx].content = e.target.value.split('\n'); setEventsData({...eventsData, events: up}) }, rows: 4, className: "w-full bg-[#0d1117] border border-slate-800 p-4 rounded-2xl text-sm text-slate-400 outline-none focus:border-orange-500 mb-4" }),
+                        React.createElement('div', { className: "grid grid-cols-2 gap-4" }, [
+                          React.createElement('div', null, [
+                            React.createElement('label', { className: "text-[8px] font-black uppercase text-slate-600 mb-1 block" }, "Gradient 1"),
+                            React.createElement('div', { className: "color-input-wrapper h-8" }, React.createElement('input', { type: "color", value: ev.theme?.gradient?.[0] || '#ff9800', onChange: e => { let up = [...eventsData.events]; up[idx].theme.gradient[0] = e.target.value; setEventsData({...eventsData, events: up})} }))
+                          ]),
+                          React.createElement('div', null, [
+                            React.createElement('label', { className: "text-[8px] font-black uppercase text-slate-600 mb-1 block" }, "Gradient 2"),
+                            React.createElement('div', { className: "color-input-wrapper h-8" }, React.createElement('input', { type: "color", value: ev.theme?.gradient?.[1] || '#ff5722', onChange: e => { let up = [...eventsData.events]; up[idx].theme.gradient[1] = e.target.value; setEventsData({...eventsData, events: up})} }))
+                          ])
+                        ])
+                      ]))
+                    ]) : React.createElement('div', { className: "space-y-10" }, [
+                      React.createElement('input', { value: leaderboardData.title, onChange: e => setLeaderboardData({...leaderboardData, title: e.target.value}), className: "w-full bg-[#0d1117] border border-slate-800 p-5 rounded-3xl text-xl font-bold text-white focus:border-orange-500 outline-none" }),
+                      React.createElement('button', { onClick: addSport, className: "w-full py-4 border-2 border-dashed border-slate-800 rounded-3xl text-slate-500 hover:text-orange-500 hover:border-orange-500 transition-all font-black uppercase tracking-widest text-[10px]" }, "+ Add New Sport Section"),
+                      leaderboardData.sports.map((sport, sIdx) => 
+                        React.createElement('div', { key: sIdx, className: "bg-black/40 p-8 rounded-[2rem] border border-slate-800 relative group" }, [
+                          React.createElement('button', { onClick: () => removeSport(sIdx), className: "absolute -top-3 -right-3 w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity shadow-lg" }, "✕"),
+                          React.createElement('input', { value: sport.sport, onChange: e => updateSport(sIdx, 'sport', e.target.value), className: "w-full bg-[#0d1117] border border-slate-800 p-4 rounded-2xl text-lg font-bold text-orange-500 mb-6 outline-none focus:border-orange-500" }),
+                          React.createElement('div', { className: "space-y-4" }, [
+                            React.createElement('div', { className: "flex justify-between items-center" }, [
+                              React.createElement('label', { className: "text-[9px] font-black text-slate-600 uppercase" }, "Winners Details"),
+                              React.createElement('button', { onClick: () => addWinnerRow(sIdx), className: "text-[8px] font-black uppercase text-orange-500 bg-orange-500/10 px-3 py-1.5 rounded-lg" }, "+ Add")
+                            ]),
+                            sport.winners.map((winner, wIdx) => 
+                              React.createElement('div', { key: wIdx, className: "grid grid-cols-12 gap-3 items-center" }, [
+                                React.createElement('input', { type: "number", value: winner.position, onChange: e => updateWinner(sIdx, wIdx, 'position', e.target.value), className: "col-span-2 bg-black/60 border border-slate-800 p-3 rounded-xl text-xs font-black text-white text-center" }),
+                                React.createElement('input', { value: winner.name, onChange: e => updateWinner(sIdx, wIdx, 'name', e.target.value), className: "col-span-5 bg-black/60 border border-slate-800 p-3 rounded-xl text-xs text-white" }),
+                                React.createElement('input', { value: winner.class, onChange: e => updateWinner(sIdx, wIdx, 'class', e.target.value), className: "col-span-3 bg-black/60 border border-slate-800 p-3 rounded-xl text-xs text-slate-500" }),
+                                React.createElement('button', { onClick: () => removeWinnerRow(sIdx, wIdx), className: "col-span-2 text-red-500" }, "✕")
                               ])
-                           ])
-                        ]))
-                    ]) : React.createElement('div', { className: "space-y-8" }, [
-                        React.createElement('input', { value: leaderboardData.title, onChange: e => setLeaderboardData({...leaderboardData, title: e.target.value}), className: "w-full bg-[#0d1117] border border-slate-800 p-5 rounded-3xl text-xl font-bold text-white outline-none" }),
-                        React.createElement('button', { onClick: addSport, className: "w-full py-4 border-2 border-dashed border-slate-800 rounded-3xl text-slate-500 font-black uppercase text-[10px] hover:border-orange-500 hover:text-orange-500 transition-all" }, "+ Add New Sport Section"),
-                        leaderboardData.sports.map((s, i) => React.createElement('div', { key: i, className: "bg-black/40 p-8 rounded-3xl border border-slate-800 relative group" }, [
-                           React.createElement('button', { onClick: () => setLeaderboardData(p => ({...p, sports: p.sports.filter((_, idx) => idx !== i)})), className: "absolute -top-3 -right-3 w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity" }, "✕"),
-                           React.createElement('input', { value: s.sport, onChange: e => updateSport(i, 'sport', e.target.value), className: "w-full bg-[#0d1117] border border-slate-800 p-4 rounded-2xl text-orange-500 font-bold outline-none mb-6" }),
-                           React.createElement('div', { className: "space-y-4" }, [
-                               React.createElement('div', { className: "flex justify-between items-center" }, [
-                                  React.createElement('label', { className: "text-[9px] font-black text-slate-600 uppercase" }, "Winners Details"),
-                                  React.createElement('button', { onClick: () => addWinnerRow(i), className: "text-[8px] font-black uppercase text-orange-500 bg-orange-500/10 px-3 py-1.5 rounded-lg" }, "+ Add Winner")
-                               ]),
-                               s.winners.map((w, wi) => React.createElement('div', { key: wi, className: "grid grid-cols-12 gap-3 items-center" }, [
-                                  React.createElement('input', { type: "number", value: w.position, onChange: e => updateWinner(i, wi, 'position', e.target.value), className: "col-span-2 bg-black/60 border border-slate-800 p-3 rounded-xl text-xs font-black text-white text-center" }),
-                                  React.createElement('input', { value: w.name, onChange: e => updateWinner(i, wi, 'name', e.target.value), placeholder: "Name", className: "col-span-5 bg-black/60 border border-slate-800 p-3 rounded-xl text-xs text-white" }),
-                                  React.createElement('input', { value: w.class, onChange: e => updateWinner(i, wi, 'class', e.target.value), placeholder: "Class", className: "col-span-3 bg-black/60 border border-slate-800 p-3 rounded-xl text-xs text-slate-500" }),
-                                  React.createElement('button', { onClick: () => { let up = [...leaderboardData.sports]; up[i].winners = up[i].winners.filter((_, idx) => idx !== wi); setLeaderboardData({...leaderboardData, sports: up}) }, className: "col-span-2 text-red-500 text-xs" }, "✕")
-                               ]))
-                           ])
-                        ]))
+                            )
+                          ])
+                        ])
+                      )
                     ])
                   ),
-
+                  
                   React.createElement('button', { 
                     onClick: () => handlePublish(),
                     disabled: loading || !shas[activeTab],
                     className: "w-full mt-12 py-6 bg-gradient-to-r from-orange-600 to-amber-500 text-white font-black text-lg rounded-3xl shadow-2xl transition-all active:scale-[0.97] disabled:opacity-20 flex items-center justify-center gap-4 uppercase tracking-widest"
-                  }, [
-                    (loading && busyTab === activeTab) ? React.createElement('div', { className: "loader" }) : null,
-                    "🚀 APPLY LIVE CHANGES"
-                  ])
+                  }, loading ? React.createElement('div', { className: "loader" }) : "🚀 APPLY LIVE CHANGES")
                 ])
               ),
-
               React.createElement('div', { key: 'preview', className: "lg:col-span-4" }, 
                 React.createElement('section', { className: "glass-panel p-8 rounded-[3rem] h-full flex flex-col" }, [
                   React.createElement('h3', { className: "text-[10px] font-black mb-8 flex items-center gap-3 text-slate-500 uppercase tracking-widest" }, [
                     React.createElement('span', { className: "w-2 h-2 rounded-full bg-green-500 animate-pulse" }),
-                    "Dynamic Preview (Full View)"
+                    "Dynamic Preview"
                   ]),
                   React.createElement('div', { className: "flex-1 min-h-[500px] bg-[#0f1117] rounded-[2.5rem] p-4 overflow-y-auto custom-scrollbar shadow-inner" }, 
-                    activeTab === 'notice' ? React.createElement('div', { className: "bg-[#161a22] p-6 rounded-[2rem] border border-slate-800 relative overflow-hidden" }, [
+                    activeTab === 'notice' ? React.createElement('div', { className: "bg-[#161a22] p-6 rounded-[2rem] border border-slate-800 shadow-2xl relative overflow-hidden" }, [
                       React.createElement('div', { className: "absolute top-0 left-0 w-full h-1 bg-orange-600" }),
                       React.createElement('h4', { className: "text-orange-500 font-black text-lg uppercase mb-4" }, noticeData.title || 'Notice Board'),
                       noticeData.message.map((m, i) => React.createElement('p', { key: i, className: "text-[11px] text-slate-400 mb-2 leading-relaxed" }, m)),
@@ -652,7 +569,6 @@
                 ])
               )
             ]),
-
             React.createElement('footer', { key: 'footer', className: "text-center pt-24 pb-12 flex flex-col items-center gap-6" }, [
                React.createElement('div', { className: "flex items-center gap-6 opacity-30 w-full" }, [
                   React.createElement('div', { className: "h-px flex-1 bg-slate-500" }),
