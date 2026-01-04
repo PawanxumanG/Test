@@ -101,6 +101,7 @@
 
         const hexToRgba = (hex, alpha) => {
             if (!hex) return `rgba(0,0,0,${alpha})`;
+            if (hex.startsWith('rgba')) return hex;
             const r = parseInt(hex.slice(1, 3), 16);
             const g = parseInt(hex.slice(3, 5), 16);
             const b = parseInt(hex.slice(5, 7), 16);
@@ -130,7 +131,13 @@
             id: 'notice-default', 
             show: false, 
             title: '', 
-            message: '' 
+            message: '',
+            theme: {
+              gradient: ["#ff9800", "#ff5722"],
+              glow: { color: "#ff9800", blur: 30, intensity: 1 },
+              textColor: "#ffffff",
+              buttonColor: "#000000"
+            }
           });
           const [eventsData, setEventsData] = useState({ 
             show: true, 
@@ -477,7 +484,6 @@
                               React.createElement('label', { className: "text-[9px] font-black text-slate-600 uppercase mb-2 block" }, "Description (Full Text)"),
                               React.createElement('textarea', { value: ev.content.join('\n'), onChange: e => { let up = [...eventsData.events]; up[idx].content = e.target.value.split('\n'); setEventsData({...eventsData, events: up}) }, rows: 6, className: "w-full bg-[#0d1117] border border-slate-800 p-4 rounded-2xl text-sm text-slate-400 outline-none focus:border-orange-500 resize-none custom-scrollbar" })
                             ]),
-                            // Extended Color & Glow Section
                             React.createElement('div', { className: "space-y-6" }, [
                               React.createElement('div', null, [
                                 React.createElement('div', { className: "flex justify-between items-center mb-4" }, [
@@ -546,6 +552,7 @@
                         React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2 pl-1" }, "Body Content (Full Text)"),
                         React.createElement('textarea', { value: activeTab === 'notice' ? noticeData.message.join('\n') : announcementData.message, onChange: e => activeTab === 'notice' ? setNoticeData({...noticeData, message: e.target.value.split('\n')}) : setAnnouncementData({...announcementData, message: e.target.value}), rows: 12, className: "w-full bg-[#0d1117] border border-slate-800 p-5 rounded-3xl text-slate-300 resize-none outline-none focus:border-orange-500" })
                       ]),
+                      // Feature from screenshot: Notice Updates / Changelog Section
                       activeTab === 'notice' && React.createElement('div', { className: "space-y-6 pt-6 border-t border-slate-800/50" }, [
                         React.createElement('div', null, [
                           React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2 pl-1" }, "Version Tag"),
@@ -566,6 +573,54 @@
                                 ])
                               )
                           )
+                        ])
+                      ]),
+                      // --- Pop-up Theme Editor (Matching Events Manager Style) ---
+                      activeTab === 'announcement' && React.createElement('div', { className: "space-y-6 pt-6 border-t border-slate-800/50" }, [
+                        React.createElement('div', null, [
+                          React.createElement('div', { className: "flex justify-between items-center mb-4" }, [
+                            React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1" }, "Gradient Colors"),
+                            React.createElement('button', { onClick: () => { let up = {...announcementData}; up.theme.gradient.push('#ffffff'); setAnnouncementData(up) }, className: "text-[8px] font-black uppercase text-orange-500 px-3 py-1 bg-orange-500/10 rounded-lg" }, "+ Add Color")
+                          ]),
+                          React.createElement('div', { className: "grid grid-cols-2 sm:grid-cols-4 gap-3" }, announcementData.theme?.gradient?.map((col, cIdx) => 
+                            React.createElement('div', { key: cIdx, className: "relative group/color" }, [
+                              React.createElement('label', { className: "text-[8px] font-black text-slate-600 uppercase mb-1 block" }, `COLOR ${cIdx + 1}`),
+                              React.createElement('div', { className: "color-input-wrapper" }, 
+                                React.createElement('input', { type: "color", value: col, onChange: e => { let up = {...announcementData}; up.theme.gradient[cIdx] = e.target.value; setAnnouncementData(up) } })
+                              ),
+                              announcementData.theme.gradient.length > 2 && React.createElement('button', { onClick: () => { let up = {...announcementData}; up.theme.gradient = up.theme.gradient.filter((_, i) => i !== cIdx); setAnnouncementData(up) }, className: "absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-4 h-4 text-[8px] opacity-0 group-hover/color:opacity-100 transition-opacity" }, "✕")
+                            ])
+                          ))
+                        ]),
+                        React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-slate-800/50" }, [
+                          React.createElement('div', null, [
+                            React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest pl-1" }, "Glow Color"),
+                            React.createElement('div', { className: "color-input-wrapper" }, 
+                              React.createElement('input', { type: "color", value: announcementData.theme?.glow?.color || '#ff9800', onChange: e => { let up = {...announcementData}; up.theme.glow.color = e.target.value; setAnnouncementData(up) } })
+                            )
+                          ]),
+                          React.createElement('div', null, [
+                            React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest pl-1" }, `Glow Blur: ${announcementData.theme?.glow?.blur || 30}px`),
+                            React.createElement('input', { type: "range", min: "0", max: "100", value: announcementData.theme?.glow?.blur || 30, onChange: e => { let up = {...announcementData}; up.theme.glow.blur = parseInt(e.target.value); setAnnouncementData(up) }, className: "w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-orange-500" })
+                          ]),
+                          React.createElement('div', null, [
+                            React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest pl-1" }, `Intensity: ${Math.round((announcementData.theme?.glow?.intensity || 1) * 100)}%`),
+                            React.createElement('input', { type: "range", min: "0", max: "1", step: "0.01", value: announcementData.theme?.glow?.intensity || 1, onChange: e => { let up = {...announcementData}; up.theme.glow.intensity = parseFloat(e.target.value); setAnnouncementData(up) }, className: "w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-orange-500" })
+                          ])
+                        ]),
+                        React.createElement('div', { className: "grid grid-cols-2 gap-6 pt-4 border-t border-slate-800/50" }, [
+                          React.createElement('div', null, [
+                            React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest pl-1" }, "Text Color"),
+                            React.createElement('div', { className: "color-input-wrapper" }, 
+                              React.createElement('input', { type: "color", value: announcementData.theme?.textColor || '#ffffff', onChange: e => { let up = {...announcementData}; up.theme.textColor = e.target.value; setAnnouncementData(up) } })
+                            )
+                          ]),
+                          React.createElement('div', null, [
+                            React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest pl-1" }, "Button Color"),
+                            React.createElement('div', { className: "color-input-wrapper" }, 
+                              React.createElement('input', { type: "color", value: announcementData.theme?.buttonColor || '#000000', onChange: e => { let up = {...announcementData}; up.theme.buttonColor = e.target.value; setAnnouncementData(up) } })
+                            )
+                          ])
                         ])
                       ])
                     ])
@@ -611,9 +666,23 @@
                         React.createElement('span', { className: "text-orange-500 text-[9px] font-black uppercase mb-2 block" }, noticeData.updates.version),
                         noticeData.updates.items.map((it, idx) => React.createElement('p', { key: idx, className: "text-slate-500 text-[9px] mb-1" }, `• ${it}`))
                       ])
-                    ]) : React.createElement('div', { className: `text-center p-4 ${announcementData.show ? 'block' : 'hidden'}` }, [
-                      React.createElement('h4', { className: "text-white font-bold uppercase" }, announcementData.title),
-                      React.createElement('p', { className: "text-slate-400 text-xs mt-2" }, announcementData.message)
+                    ]) : React.createElement('div', { 
+                      className: `p-6 rounded-[2rem] text-center ${announcementData.show ? 'block' : 'opacity-20'}`,
+                      style: announcementData.theme ? {
+                        background: `linear-gradient(135deg, ${announcementData.theme.gradient.join(',')})`,
+                        boxShadow: `0 0 ${announcementData.theme.glow?.blur || 30}px ${hexToRgba(announcementData.theme.glow?.color || '#ff9800', announcementData.theme.glow?.intensity || 0.5)}`,
+                        color: announcementData.theme.textColor || '#ffffff'
+                      } : {}
+                    }, [
+                      React.createElement('h4', { className: "font-black uppercase text-sm mb-4" }, announcementData.title || 'Pop-up Title'),
+                      React.createElement('p', { className: "text-[11px] leading-relaxed mb-6" }, announcementData.message || 'Pop-up message content...'),
+                      React.createElement('button', {
+                        className: "px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl",
+                        style: {
+                          backgroundColor: announcementData.theme?.buttonColor || '#000000',
+                          color: announcementData.theme?.textColor || '#ffffff'
+                        }
+                      }, "DISMISS")
                     ])
                   )
                 ])
