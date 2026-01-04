@@ -60,7 +60,8 @@
         }
         .name-glow {
             color: #f97316;
-            text-shadow: 0 0 10px rgba(249, 115, 22, 0.8);
+            font-weight: 900;
+            text-shadow: 0 0 15px rgba(249, 115, 22, 0.9), 0 0 30px rgba(249, 115, 22, 0.4);
         }
         .color-input-wrapper {
             position: relative;
@@ -68,7 +69,11 @@
             height: 48px;
             border-radius: 12px;
             overflow: hidden;
-            border: 1px solid rgba(48, 54, 61, 0.6);
+            border: 2px solid rgba(48, 54, 61, 0.8);
+            transition: border-color 0.2s;
+        }
+        .color-input-wrapper:hover {
+            border-color: #f97316;
         }
         .color-input-wrapper input[type="color"] {
             position: absolute;
@@ -93,6 +98,14 @@
         // --- Logic & Component ---
 
         const ADMIN_PASSWORD = "Pawan1645@";
+
+        const hexToRgba = (hex, alpha) => {
+            if (!hex) return `rgba(0,0,0,${alpha})`;
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        };
 
         const safeB64Encode = (str) => btoa(unescape(encodeURIComponent(str)));
         const safeB64Decode = (str) => decodeURIComponent(escape(atob(str)));
@@ -316,8 +329,12 @@
               title: 'New College Event',
               content: ['Enter detail line 1'],
               theme: {
-                gradient: ["#00ffff", "#8bc34a"],
-                glow: "rgba(255,152,0,0.55)"
+                gradient: ["#ff9800", "#ff5722", "#7b2cff", "#2575fc"],
+                glow: {
+                  color: "#ff9800",
+                  blur: 30,
+                  intensity: 0.8
+                }
               }
             };
             setEventsData(prev => ({ ...prev, events: [newEvent, ...prev.events] }));
@@ -394,7 +411,7 @@
                   )
                 ]),
                 React.createElement('div', { key: 'contact', className: "flex items-center gap-3 mt-1 pr-2" }, [
-                  React.createElement('span', { className: "text-[10px] font-black uppercase tracking-widest name-glow" }, "Pawan Ponnam"),
+                  React.createElement('span', { className: "text-[11px] uppercase tracking-widest name-glow" }, "PAWAN PONNAM"),
                   React.createElement('a', { href: "https://wa.me/919867637326", target: "_blank", className: "px-3 py-1 bg-green-600 hover:bg-green-500 text-white text-[9px] font-black uppercase rounded-lg shadow-lg shadow-green-900/20 flex items-center gap-1 transition-all" }, "💬 Help")
                 ])
               ])
@@ -460,28 +477,38 @@
                               React.createElement('label', { className: "text-[9px] font-black text-slate-600 uppercase mb-2 block" }, "Description (Full Text)"),
                               React.createElement('textarea', { value: ev.content.join('\n'), onChange: e => { let up = [...eventsData.events]; up[idx].content = e.target.value.split('\n'); setEventsData({...eventsData, events: up}) }, rows: 6, className: "w-full bg-[#0d1117] border border-slate-800 p-4 rounded-2xl text-sm text-slate-400 outline-none focus:border-orange-500 resize-none custom-scrollbar" })
                             ]),
-                            // Color Section matching the user's circle
-                            React.createElement('div', { className: "grid grid-cols-3 gap-4" }, [
+                            // Extended Color & Glow Section
+                            React.createElement('div', { className: "space-y-6" }, [
                               React.createElement('div', null, [
-                                React.createElement('label', { className: "text-[8px] font-black text-slate-600 uppercase mb-2 block" }, "COLOR 1"),
-                                React.createElement('div', { className: "color-input-wrapper" }, 
-                                  React.createElement('input', { type: "color", value: ev.theme.gradient[0], onChange: e => { let up = [...eventsData.events]; up[idx].theme.gradient[0] = e.target.value; setEventsData({...eventsData, events: up}) } })
-                                )
+                                React.createElement('div', { className: "flex justify-between items-center mb-4" }, [
+                                  React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1" }, "Gradient Colors"),
+                                  React.createElement('button', { onClick: () => { let up = [...eventsData.events]; up[idx].theme.gradient.push('#ffffff'); setEventsData({...eventsData, events: up}) }, className: "text-[8px] font-black uppercase text-orange-500 px-3 py-1 bg-orange-500/10 rounded-lg" }, "+ Add Color")
+                                ]),
+                                React.createElement('div', { className: "grid grid-cols-2 sm:grid-cols-4 gap-3" }, ev.theme.gradient.map((col, cIdx) => 
+                                  React.createElement('div', { key: cIdx, className: "relative group/color" }, [
+                                    React.createElement('label', { className: "text-[8px] font-black text-slate-600 uppercase mb-1 block" }, `COLOR ${cIdx + 1}`),
+                                    React.createElement('div', { className: "color-input-wrapper" }, 
+                                      React.createElement('input', { type: "color", value: col, onChange: e => { let up = [...eventsData.events]; up[idx].theme.gradient[cIdx] = e.target.value; setEventsData({...eventsData, events: up}) } })
+                                    ),
+                                    ev.theme.gradient.length > 2 && React.createElement('button', { onClick: () => { let up = [...eventsData.events]; up[idx].theme.gradient = up[idx].theme.gradient.filter((_, i) => i !== cIdx); setEventsData({...eventsData, events: up}) }, className: "absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-4 h-4 text-[8px] opacity-0 group-hover/color:opacity-100 transition-opacity" }, "✕")
+                                  ])
+                                ))
                               ]),
-                              React.createElement('div', null, [
-                                React.createElement('label', { className: "text-[8px] font-black text-slate-600 uppercase mb-2 block" }, "COLOR 2"),
-                                React.createElement('div', { className: "color-input-wrapper" }, 
-                                  React.createElement('input', { type: "color", value: ev.theme.gradient[1], onChange: e => { let up = [...eventsData.events]; up[idx].theme.gradient[1] = e.target.value; setEventsData({...eventsData, events: up}) } })
-                                )
-                              ]),
-                              React.createElement('div', null, [
-                                React.createElement('label', { className: "text-[8px] font-black text-slate-600 uppercase mb-2 block" }, "GLOW"),
-                                React.createElement('input', { 
-                                  value: ev.theme.glow, 
-                                  onChange: e => { let up = [...eventsData.events]; up[idx].theme.glow = e.target.value; setEventsData({...eventsData, events: up}) }, 
-                                  className: "w-full bg-[#0d1117] border border-slate-800 p-3.5 rounded-xl text-[10px] font-mono text-slate-400 outline-none focus:border-orange-500",
-                                  placeholder: "rgba(255,152,0,0.55)"
-                                })
+                              React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-slate-800/50" }, [
+                                React.createElement('div', null, [
+                                  React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest pl-1" }, "Glow Color"),
+                                  React.createElement('div', { className: "color-input-wrapper" }, 
+                                    React.createElement('input', { type: "color", value: typeof ev.theme.glow === 'object' ? ev.theme.glow.color : '#ff9800', onChange: e => { let up = [...eventsData.events]; if(typeof up[idx].theme.glow !== 'object') up[idx].theme.glow = {color: e.target.value, blur: 30, intensity: 0.5}; up[idx].theme.glow.color = e.target.value; setEventsData({...eventsData, events: up}) } })
+                                  )
+                                ]),
+                                React.createElement('div', null, [
+                                  React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest pl-1" }, `Glow Blur: ${ev.theme.glow?.blur || 30}px`),
+                                  React.createElement('input', { type: "range", min: "0", max: "100", value: ev.theme.glow?.blur || 30, onChange: e => { let up = [...eventsData.events]; if(typeof up[idx].theme.glow !== 'object') up[idx].theme.glow = {color: '#ff9800', blur: 30, intensity: 0.5}; up[idx].theme.glow.blur = parseInt(e.target.value); setEventsData({...eventsData, events: up}) }, className: "w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-orange-500" })
+                                ]),
+                                React.createElement('div', null, [
+                                  React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest pl-1" }, `Intensity: ${Math.round((ev.theme.glow?.intensity || 0.5) * 100)}%`),
+                                  React.createElement('input', { type: "range", min: "0", max: "1", step: "0.01", value: ev.theme.glow?.intensity || 0.5, onChange: e => { let up = [...eventsData.events]; if(typeof up[idx].theme.glow !== 'object') up[idx].theme.glow = {color: '#ff9800', blur: 30, intensity: 0.5}; up[idx].theme.glow.intensity = parseFloat(e.target.value); setEventsData({...eventsData, events: up}) }, className: "w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-orange-500" })
+                                ])
                               ])
                             ])
                           ])
@@ -566,7 +593,14 @@
                           React.createElement('span', null, w.class)
                         ]))
                       ]))
-                    ]) : activeTab === 'events' ? eventsData.events.map((ev, i) => React.createElement('div', { key: i, className: "p-4 mb-4 rounded-xl text-white event-preview-card", style: { background: `linear-gradient(135deg, ${ev.theme.gradient.join(',')})`, boxShadow: `0 0 15px ${ev.theme.glow}` } }, [
+                    ]) : activeTab === 'events' ? eventsData.events.map((ev, i) => React.createElement('div', { 
+                      key: i, 
+                      className: "p-4 mb-4 rounded-xl text-white event-preview-card", 
+                      style: { 
+                        background: `linear-gradient(135deg, ${ev.theme.gradient.join(',')})`, 
+                        boxShadow: `0 0 ${ev.theme.glow?.blur || 30}px ${hexToRgba(typeof ev.theme.glow === 'object' ? ev.theme.glow.color : '#ff9800', ev.theme.glow?.intensity || 0.5)}`
+                      } 
+                    }, [
                       React.createElement('h4', { className: "font-black uppercase text-[12px]" }, ev.title),
                       ev.content.map((c, ci) => React.createElement('p', { key: ci, className: "text-[9px] mt-1.5 opacity-90 leading-tight" }, `• ${c}`))
                     ])) : activeTab === 'notice' ? React.createElement('div', { className: "bg-[#161a22] p-6 rounded-[2rem] border border-slate-800 shadow-2xl relative overflow-hidden" }, [
@@ -596,7 +630,7 @@
                  React.createElement('div', { className: "bg-[#161b22] px-8 py-4 rounded-[1.5rem] border border-slate-800/50 shadow-xl inline-flex items-center gap-4" }, [
                    React.createElement('span', { className: "text-slate-500 text-[10px] font-black uppercase tracking-widest" }, "MADE BY"),
                    React.createElement('div', { className: "w-px h-4 bg-slate-800" }),
-                   React.createElement('span', { className: "name-glow text-[11px] font-black uppercase tracking-[0.2em]" }, "PAWAN PONNAM")
+                   React.createElement('span', { className: "name-glow text-[11px] uppercase tracking-[0.2em]" }, "PAWAN PONNAM")
                  ])
                ]),
                React.createElement('p', { className: "text-slate-700 text-[8px] font-bold uppercase tracking-[0.6em] mt-4" }, "ENCRYPTED ENVIRONMENT V2.2")
