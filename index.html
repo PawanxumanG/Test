@@ -116,7 +116,7 @@
           const [passwordInput, setPasswordInput] = useState('');
           
           const [config, setConfig] = useState(() => {
-            const saved = localStorage.getItem('rr_admin_config_v12');
+            const saved = localStorage.getItem('rr_admin_config_v13');
             return saved ? JSON.parse(saved) : { token: '', owner: '', repo: '' };
           });
 
@@ -139,7 +139,7 @@
           const [showSettings, setShowSettings] = useState(false);
 
           useEffect(() => {
-            localStorage.setItem('rr_admin_config_v12', JSON.stringify(config));
+            localStorage.setItem('rr_admin_config_v13', JSON.stringify(config));
           }, [config]);
 
           const notify = (type, message) => {
@@ -429,22 +429,22 @@
                     ]) : activeTab === 'announcement' ? React.createElement('div', { className: "space-y-8" }, [
                       React.createElement('div', null, [
                         React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2 pl-1" }, "Primary Headline"),
-                        React.createElement('input', { value: announcementData.title, onChange: e => setAnnouncementData({...announcementData, title: e.target.value}), className: "w-full bg-[#0d1117] border border-slate-800 p-5 rounded-3xl text-xl font-bold text-white focus:border-orange-500 outline-none" })
+                        React.createElement('input', { value: announcementData.title, onChange: e => setAnnouncementData(prev => ({...prev, title: e.target.value})), className: "w-full bg-[#0d1117] border border-slate-800 p-5 rounded-3xl text-xl font-bold text-white focus:border-orange-500 outline-none" })
                       ]),
                       React.createElement('div', null, [
                         React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2 pl-1" }, "Body Content (Full Text)"),
-                        React.createElement('textarea', { value: announcementData.message, onChange: e => setAnnouncementData({...announcementData, message: e.target.value}), rows: 10, className: "w-full bg-[#0d1117] border border-slate-800 p-5 rounded-3xl text-slate-300 resize-none outline-none focus:border-orange-500" })
+                        React.createElement('textarea', { value: announcementData.message, onChange: e => setAnnouncementData(prev => ({...prev, message: e.target.value})), rows: 10, className: "w-full bg-[#0d1117] border border-slate-800 p-5 rounded-3xl text-slate-300 resize-none outline-none focus:border-orange-500" })
                       ]),
                       React.createElement('div', { className: "space-y-6 pt-6 border-t border-slate-800/50" }, [
                         React.createElement('div', null, [
                           React.createElement('div', { className: "flex justify-between items-center mb-4" }, [
                             React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1" }, "Gradient Colors"),
-                            React.createElement('button', { onClick: () => { let up = {...announcementData}; up.theme.gradient.push('#ffffff'); setAnnouncementData(up) }, className: "text-[8px] font-black uppercase text-orange-500 px-3 py-1 bg-orange-500/10 rounded-lg" }, "+ Add Color")
+                            React.createElement('button', { onClick: () => setAnnouncementData(prev => ({...prev, theme: {...prev.theme, gradient: [...prev.theme.gradient, '#ffffff']}})), className: "text-[8px] font-black uppercase text-orange-500 px-3 py-1 bg-orange-500/10 rounded-lg" }, "+ Add Color")
                           ]),
                           React.createElement('div', { className: "grid grid-cols-2 sm:grid-cols-4 gap-3" }, (announcementData.theme?.gradient || []).map((col, ci) => 
                             React.createElement('div', { key: ci, className: "relative group/color" }, [
-                              React.createElement('div', { className: "color-input-wrapper" }, React.createElement('input', { type: "color", value: col, onChange: e => { let up = {...announcementData}; up.theme.gradient[ci] = e.target.value; setAnnouncementData(up) } })),
-                              ci > 1 && React.createElement('button', { onClick: () => { let up = {...announcementData}; up.theme.gradient = up.theme.gradient.filter((_, i) => i !== ci); setAnnouncementData(up) }, className: "absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-4 h-4 text-[8px] opacity-0 group-hover/color:opacity-100 transition-opacity" }, "✕")
+                              React.createElement('div', { className: "color-input-wrapper" }, React.createElement('input', { type: "color", value: col, onChange: e => setAnnouncementData(prev => ({...prev, theme: {...prev.theme, gradient: prev.theme.gradient.map((val, i) => i === ci ? e.target.value : val)}})) })),
+                              ci > 1 && React.createElement('button', { onClick: () => setAnnouncementData(prev => ({...prev, theme: {...prev.theme, gradient: prev.theme.gradient.filter((_, i) => i !== ci)}})), className: "absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-4 h-4 text-[8px] opacity-0 group-hover/color:opacity-100 transition-opacity" }, "✕")
                             ])
                           ))
                         ]),
