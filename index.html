@@ -124,8 +124,24 @@
             show: true, title: '', message: [], updates: { version: '', items: [] } 
           });
           const [announcementData, setAnnouncementData] = useState({ 
-            id: 'notice-default', show: false, title: '', message: '',
-            theme: { gradient: ["#ff9800", "#ff5722"], glow: { color: "#ff9800", blur: 30, intensity: 1 }, textColor: "#ffffff", buttonColor: "#000000" }
+            id: 'ann-' + Date.now(), 
+            show: false, 
+            title: '', 
+            message: '',
+            type: 'important',
+            updated: new Date().toISOString(),
+            theme: { 
+                gradient: ["#ff9800", "#ff5722"], 
+                alternateGradients: [
+                    ["#ff512f", "#dd2476"],
+                    ["#00c6ff", "#0072ff"],
+                    ["#7b2cff", "#2575fc"],
+                    ["#f7971e", "#ffd200"]
+                ],
+                glow: { color: "#ff9800", blur: 30, intensity: 1 }, 
+                textColor: "#ffffff", 
+                buttonColor: "#000000" 
+            }
           });
           const [eventsData, setEventsData] = useState({ show: true, events: [] });
           const [leaderboardData, setLeaderboardData] = useState({ show: true, title: 'Annual Sports Results', sports: [] });
@@ -240,10 +256,28 @@
             } catch(e) {}
 
             let currentData;
-            if (activeTab === 'notice') currentData = noticeData;
-            else if (activeTab === 'announcement') currentData = { ...announcementData, id: 'ann-' + Date.now() };
-            else if (activeTab === 'events') currentData = eventsData;
-            else if (activeTab === 'leaderboard') currentData = leaderboardData;
+            if (activeTab === 'notice') {
+                currentData = noticeData;
+            } else if (activeTab === 'announcement') {
+                // Ensure ID and Updated fields are refreshed on every publish to trigger app updates
+                currentData = { 
+                    ...announcementData, 
+                    id: 'ann-' + Date.now(),
+                    updated: new Date().toISOString(),
+                    theme: {
+                        ...announcementData.theme,
+                        // Ensure glow color is published as RGBA string for app compatibility
+                        glow: {
+                            ...announcementData.theme.glow,
+                            color: hexToRgba(announcementData.theme.glow.color, announcementData.theme.glow.intensity)
+                        }
+                    }
+                };
+            } else if (activeTab === 'events') {
+                currentData = eventsData;
+            } else if (activeTab === 'leaderboard') {
+                currentData = leaderboardData;
+            }
 
             try {
               const url = `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${path}`;
@@ -427,6 +461,19 @@
                         ])
                       ])
                     ]) : activeTab === 'announcement' ? React.createElement('div', { className: "space-y-8" }, [
+                      React.createElement('div', { className: "grid grid-cols-2 gap-4" }, [
+                          React.createElement('div', null, [
+                            React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2 pl-1" }, "Announcement Type"),
+                            React.createElement('select', { value: announcementData.type, onChange: e => setAnnouncementData(prev => ({...prev, type: e.target.value})), className: "w-full bg-[#0d1117] border border-slate-800 p-4 rounded-2xl text-sm font-bold text-white focus:border-orange-500 outline-none" }, [
+                                React.createElement('option', { value: "important" }, "Important"),
+                                React.createElement('option', { value: "normal" }, "Normal")
+                            ])
+                          ]),
+                          React.createElement('div', null, [
+                            React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2 pl-1" }, "Last Updated (Preview)"),
+                            React.createElement('div', { className: "w-full bg-[#0d1117] border border-slate-800 p-4 rounded-2xl text-[10px] text-slate-500 truncate" }, announcementData.updated)
+                          ])
+                      ]),
                       React.createElement('div', null, [
                         React.createElement('label', { className: "text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2 pl-1" }, "Primary Headline"),
                         React.createElement('input', { value: announcementData.title, onChange: e => setAnnouncementData(prev => ({...prev, title: e.target.value})), className: "w-full bg-[#0d1117] border border-slate-800 p-5 rounded-3xl text-xl font-bold text-white focus:border-orange-500 outline-none" })
